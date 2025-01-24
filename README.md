@@ -20,23 +20,15 @@ Here's an example configuration YAML file.
 ~~~yaml
 - tag: BadBot
   action: |
-    sudo iptables
-        -I logagent_badbot
-        -p tcp -m multiport
-        --dports http,https
-        -J REJECT
-        --reject-with imcp-port-unreachable
-        -s {ipaddress}
+    sudo iptables -A INPUT -p tcp -m multiport
+         --dports 80,443 -s {ipaddress} -j DROP
 ~~~
 
 If the text "BadBot" is found in the log line. and the IP address "156.59.198.136" was found in the log line then the following command would be executed.
 
 ~~~shell
-    sudo iptables -I logagent_badbot \
-       -p tcp -m multiport \
-       --dports http,https \
-       -j REJECT --reject-with icmp-port-unreachable \
-       -s 156.59.198.136
+    sudo iptables -A INPUT -p tcp -m multiport
+         --dports 80,443 -s 156.59.198.136 -j DROP
 ~~~
 
 # USAGE:

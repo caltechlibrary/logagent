@@ -42,7 +42,7 @@ If the text "BadBot" is found in the log line. and the IP address "156.59.198.13
 # USAGE:
 
 ~~~
-logagent OPTIONS CONFIG_FILE LOG_FILE
+logagent CONFIG_FILE LOG_FILE [OPTIONS]
 ~~~
 
 The CONFIG_FILE is the YAML file used to configure the logagent and the log
@@ -55,7 +55,7 @@ sudo logagent badbots.yaml /var/log/nginx/access.log
 If you wanted to test the agent configuration then the two examples below are helpful.
 
 ~~~
-sudo logagent --dry-run badbots.yaml /var/log/nginx/access.log
+sudo logagent badbots.yaml /var/log/nginx/access.log --dry_run 
 ~~~
 
 # OPTIONS
@@ -69,5 +69,5 @@ sudo logagent --dry-run badbots.yaml /var/log/nginx/access.log
 -l, --license
 : display license
 
--d, --dry-run
+-d, --dry_run
 : don't take any actions, instead write each action to standard out. This lets you cature them in a bash or Powershell script.

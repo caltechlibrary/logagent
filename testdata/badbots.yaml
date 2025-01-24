@@ -1,0 +1,18 @@
+- tag: YandexBot
+  action: |
+    sudo iptables
+        -I logagent_badbot
+        -p tcp -m multiport
+        --dports http,https
+        -J REJECT
+        --reject-with imcp-port-unreachable
+        -s {ipaddress}
+- tag: Bytespider
+  action: |
+    sudo iptables
+        -I logagent_badbot
+        -p tcp -m multiport
+        --dports http,https
+        -J REJECT
+        --reject-with imcp-port-unreachable
+        -s {ipaddress}

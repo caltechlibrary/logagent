@@ -1,0 +1,45 @@
+{
+    "@context": "https://w3id.org/codemeta/3.0",
+    "type": "SoftwareSourceCode",
+    "applicationCategory": "software",
+    "author": [
+        {
+            "id": "https://orcid.org/0000-0003-0900-6903",
+            "type": "Person",
+            "affiliation": {
+                "type": "Organization",
+                "name": "Caltech Library, California Institute of Technology"
+            },
+            "email": "rsdoiel@caltech.edu",
+            "familyName": "Doiel",
+            "givenName": "R. S."
+        }
+    ],
+    "codeRepository": "git+https://github.com/caltechlibrary/logagent",
+    "dateCreated": "2025-01-23",
+    "dateModified": "2025-01-23",
+    "description": "This software scans each line of a log file for an explicit string, finds the IP address and in the log line and applies an designated action.",
+    "downloadUrl": "https://github.com/caltechlibrary/logagent/releases",
+    "funder": {
+        "type": "Organization",
+        "name": "Caltech Library"
+    },
+    "keywords": [
+        "logging",
+        "agents"
+    ],
+    "license": "https://spdx.org/licenses/BSD-3-Clause",
+    "name": "logagent",
+    "operatingSystem": [
+        "Linux",
+        "Windows",
+        "macOS"
+    ],
+    "programmingLanguage": "TypeScript",
+    "releaseNotes": "This is a proof of concept of a simple log monitoring tool.",
+    "runtimePlatform": "Deno",
+    "softwareRequirements": "deno >= 2.1.7",
+    "version": "0.0.0",
+    "developmentStatus": "concept",
+    "issueTracker": "https://github.com/caltechlibrary/logagent"
+}

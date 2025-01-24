@@ -48,21 +48,19 @@ Here's an example configuration YAML file.
 - tag: BadBot
   action: |
     sudo iptables
-        -I logagent_badbot
-        -p tcp -m multiport
-        --dports http,https
-        -J REJECT
-        --reject-with imcp-port-unreachable
-        -s {ipaddress}
+    -p tcp -m multiport
+    --dports http,https
+    -j DROP
+    -s {ipaddress}
 ~~~
 
 If the text "BadBot" is found in the log line. and the IP address "156.59.198.136" was found in the log line then the following command would be executed.
 
 ~~~shell
-    sudo iptables -I logagent_badbot \
-       -p tcp -m multiport \
-       --dports http,https \
-       -j REJECT --reject-with icmp-port-unreachable \
+    sudo iptables \\
+       -p tcp -m multiport \\
+       --dports http,https \\
+       -j DROP \\
        -s 156.59.198.136
 ~~~
 
@@ -94,11 +92,9 @@ Here's the YAML config called "badbots.yaml"
 - tag: BadBot
   action: |
     sudo iptables
-        -I logagent_badbot
         -p tcp -m multiport
         --dports http,https
-        -J REJECT
-        --reject-with imcp-port-unreachable
+        -j DROP
         -s {ipaddress}
 - tag: BadSpider
   action: |
@@ -106,8 +102,7 @@ Here's the YAML config called "badbots.yaml"
         -I logagent_badbot
         -p tcp -m multiport
         --dports http,https
-        -J REJECT
-        --reject-with imcp-port-unreachable
+        -j DROP
         -s {ipaddress}
 ~~~
 

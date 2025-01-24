@@ -12,8 +12,8 @@ authors:
 
 
 repository-code: "git+https://github.com/caltechlibrary/logagent"
-version: 0.0.0
-license-url: https://spdx.org/licenses/BSD-3-Clause
+version: 0.0.1
+license-url: https://data.caltech.edu/license
 operating-system:
   - Linux
   - Windows
@@ -28,7 +28,7 @@ keywords:
 About this software
 ===================
 
-## logagent 0.0.0
+## logagent 0.0.1
 
 ### Authors
 
@@ -40,9 +40,9 @@ About this software
 
 This software scans each line of a log file for an explicit string, finds the IP address and in the log line and applies an designated action.
 
-- License: <https://spdx.org/licenses/BSD-3-Clause>
+- License: <https://data.caltech.edu/license>
 - GitHub: <git+https://github.com/caltechlibrary/logagent>
-- Issues: <https://github.com/caltechlibrary/logagent>
+- Issues: <https://github.com/caltechlibrary/logagent/issues>
 
 ### Programming languages
 

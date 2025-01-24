@@ -1,0 +1,73 @@
+<html lang="en-US">
+<head>
+    <title>logagent</title>
+    <link rel="stylesheet" href="/css/site.css">
+</head>
+<body>
+<nav>
+<ul>
+    <li><a href="/">Home</a></li>
+    <li><a href="index.html">README</a></li>
+    <li><a href="LICENSE">LICENSE</a></li>
+    <li><a href="INSTALL.html">INSTALL</a></li>
+    <li><a href="user_manual.html">User Manual</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="search.html">Search</a></li>
+    <li><a href="https://github.com/caltechlibrary/logagent">GitHub</a></li>
+</ul>
+</nav>
+<section>
+<h1 id="installation-for-development-of-log-agent">Installation for
+development of <strong>Log Agent</strong></h1>
+<p><strong>Log Agent</strong> is an experimental, proof of concept, log
+processor. Log Agent scans each line of a log file for an explicit
+string, finds the IP address and in the log line and applies an
+designated action.</p>
+<p>It provides a <code>logagent</code> command line program.</p>
+<h2 id="quick-install-with-curl-or-irm">Quick install with curl or
+irm</h2>
+<p>There is an experimental installer.sh script that can be run with the
+following command to install latest table release. This may work for
+macOS, Linux and if you’re using Windows with the Unix subsystem. This
+would be run from your shell (e.g. Terminal on macOS).</p>
+<pre class="shell"><code>curl https://caltechlibrary.github.io/logagent/installer.sh | sh</code></pre>
+<p>This will install <code>logagent</code> in your
+<code>$HOME/bin</code> directory.</p>
+<p>If you are running Windows 10 or 11 use the Powershell command
+below.</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode ps1"><code class="sourceCode powershell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">irm</span> https<span class="op">://</span>caltechlibrary<span class="op">.</span><span class="fu">github</span><span class="op">.</span><span class="fu">io</span><span class="op">/</span>logagent<span class="op">/</span>installer<span class="op">.</span><span class="fu">ps1</span> <span class="op">|</span> <span class="fu">iex</span></span></code></pre></div>
+<h2 id="installing-from-source">Installing from source</h2>
+<h3 id="required-software">Required software</h3>
+<ol type="1">
+<li>Git (to clone the cold repository on GitHub)</li>
+<li>Deno &gt;= 2.1.7</li>
+</ol>
+<h3 id="compiling-logagent">Compiling <strong>LogAgent</strong></h3>
+<p>Deno is used to compile the TypeScript and dependent JavaScript files
+into an executable.</p>
+<ol type="1">
+<li>Use Deno’s task to build project</li>
+</ol>
+<pre class="shell"><code>deno task build</code></pre>
+<p>This will provide the <code>logagent</code> command in the “bin”
+folder in your repository directory.</p>
+<p>You can check to make sure <code>logagent</code> works for your
+system. The compiled version is self contain and can be copied someplace
+in your path.</p>
+<h3 id="manual-install-on-posix">Manual install on POSIX</h3>
+<pre class="shell"><code>mkdir -p $HOME/bin
+export PATH=&quot;$HOME/bin:$PATH&quot;
+cp bin/logagent $HOME/bin/
+export MANPATH=&quot;$MANPATH:$HOME/man&quot;
+cp -vR man $HOME/</code></pre>
+<h3 id="manual-install-for-windows-via-powershell">Manual install for
+Windows via Powershell</h3>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode ps1"><code class="sourceCode powershell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>mkdir <span class="va">$HOME</span><span class="op">/</span>bin</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="va">$PATH</span> <span class="op">=</span> <span class="op">[</span>Environment<span class="op">]::</span>GetEnvironmentVariable<span class="op">(</span><span class="st">&quot;PATH&quot;</span><span class="op">)</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="op">[</span>Environment<span class="op">]::</span>SetEnvironmentVariable<span class="op">(</span><span class="st">&quot;PATH&quot;</span><span class="op">,</span> <span class="st">&quot;</span><span class="va">$PATH</span><span class="st">;</span><span class="va">$HOME</span><span class="st">/bin&quot;</span><span class="op">)</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="fu">copy</span> <span class="op">./</span>bin<span class="op">/</span>logagent<span class="op">.</span><span class="fu">exe</span> <span class="va">$HOME</span><span class="op">/</span>bin<span class="op">/</span></span></code></pre></div>
+</section>
+</body>
+</html>

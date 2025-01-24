@@ -1,0 +1,96 @@
+<html lang="en-US">
+<head>
+    <title>logagent</title>
+    <link rel="stylesheet" href="/css/site.css">
+</head>
+<body>
+<nav>
+<ul>
+    <li><a href="/">Home</a></li>
+    <li><a href="index.html">README</a></li>
+    <li><a href="LICENSE">LICENSE</a></li>
+    <li><a href="INSTALL.html">INSTALL</a></li>
+    <li><a href="user_manual.html">User Manual</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="search.html">Search</a></li>
+    <li><a href="https://github.com/caltechlibrary/logagent">GitHub</a></li>
+</ul>
+</nav>
+<section>
+<h1 id="log-agent">Log Agent</h1>
+<p>This is a simplified log processor that looks for explicit text on a
+line, parses the line for an IP address and then applies the associated
+action. It is inspired by fail2ban but is written in response fail2ban’s
+complexity. Caltech Library needed a simple tool to do a narrow task
+that was oddly challenging using fail2ban. There is always a balancing
+act between a tool features and those that are simpler targeting a more
+specific issue.</p>
+<h2 id="approach">Approach</h2>
+<p>Log agent reads input line by line. If checks if a tag (explicit
+sub-string) is contained in that line. If a match is found then the
+agent extracts any IP addresses identified before applying a rule
+associated with the tag.</p>
+<p>The log agent requires a configuration file written in YAML. The
+configuration holds an array of objects. Each object has the following
+attributes.</p>
+<dl>
+<dt>tag</dt>
+<dd>
+The explicit search string (i.e. not regular expressions)
+</dd>
+<dt>action</dt>
+<dd>
+The command to execute if tag is found
+</dd>
+</dl>
+<p>Here’s an example configuration YAML file.</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">tag</span><span class="kw">:</span><span class="at"> BadBot</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">  action</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    sudo iptables -A INPUT -p tcp -m multiport</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    --dports 80,443 -s {ipaddress} -j DROP</span></code></pre></div>
+<p>If the text “BadBot” is found in the log line. and the IP address
+“156.59.198.136” was found in the log line then the following command
+would be executed.</p>
+<pre class="shell"><code>    sudo iptables -A INPUT -p tcp -m multiport
+         --dports 80,443 -s 156.59.198.136 -j DROP</code></pre>
+<h1 id="usage">USAGE:</h1>
+<pre><code>logagent CONFIG_FILE LOG_FILE [OPTIONS]</code></pre>
+<p>The CONFIG_FILE is the YAML file used to configure the logagent and
+the log file is the fail to process. The LOG_FILE must be provided.</p>
+<pre><code>sudo logagent badbots.yaml /var/log/nginx/access.log</code></pre>
+<p>If you wanted to test the agent configuration then the two examples
+below are helpful.</p>
+<pre><code>sudo logagent badbots.yaml /var/log/nginx/access.log --dry_run </code></pre>
+<h1 id="options">OPTIONS</h1>
+<dl>
+<dt>-h, –help</dt>
+<dd>
+display help
+</dd>
+<dt>-v, –version</dt>
+<dd>
+display version
+</dd>
+<dt>-l, –license</dt>
+<dd>
+display license
+</dd>
+<dt>-d, –dry_run</dt>
+<dd>
+don’t take any actions, instead write each action to standard out. This
+lets you capture them in a bash or Powershell script.
+</dd>
+</dl>
+<p>For more information see the following documentation pages.</p>
+<ul>
+<li><a href="user_manual.html">User Manual</a></li>
+<li><a href="INSTALL.html">Installation</a> and compiling Log Agent from
+source</li>
+<li><a href="LICENSE">LICENSE</a></li>
+<li><a href="about.html">About Log Agent</a></li>
+<li><a href="CITATION.cff">Cite with CITATION.cff</a></li>
+</ul>
+</section>
+</body>
+</html>

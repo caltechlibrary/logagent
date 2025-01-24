@@ -1,8 +1,8 @@
 - tag: YandexBot
   action: |
     sudo iptables -A INPUT -p tcp -m multiport
-         --dports 80,443 -s {ipaddress} -j DROP
+    --dports 80,443 -s {ipaddress} -j logagent DROP
 - tag: Bytespider
   action: |
     sudo iptables -A INPUT -p tcp -m multiport
-         --dports 80,443 -s {ipaddress} -j DROP
+    --dports 80,443 -s {ipaddress} -j logagent DROP

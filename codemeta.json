@@ -28,7 +28,7 @@
         "logging",
         "agents"
     ],
-    "license": "https://spdx.org/licenses/BSD-3-Clause",
+    "license": "https://data.caltech.edu/license",
     "name": "logagent",
     "operatingSystem": [
         "Linux",
@@ -39,7 +39,7 @@
     "releaseNotes": "This is a proof of concept of a simple log monitoring tool.",
     "runtimePlatform": "Deno",
     "softwareRequirements": "deno >= 2.1.7",
-    "version": "0.0.0",
+    "version": "0.0.1",
     "developmentStatus": "concept",
-    "issueTracker": "https://github.com/caltechlibrary/logagent"
+    "issueTracker": "https://github.com/caltechlibrary/logagent/issues"
 }

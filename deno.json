@@ -3,7 +3,8 @@
     "check": "deno task logagent.ts",
     "logagent.ts": "deno check logagent.ts ; deno check logagent_test.ts",
     "test": "deno task logagent_test.ts",
-    "logagent_test.ts": "deno test --allow-read logagent_test.ts"
+    "logagent_test.ts": "deno test --allow-read logagent_test.ts",
+    "build": "deno compile --allow-read --allow-write --allow-run --output ./bin/logagent main.ts"
   },
   "imports": {
     "@std/assert": "jsr:@std/assert@^1.0.11",

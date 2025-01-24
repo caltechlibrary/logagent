@@ -1,4 +1,4 @@
 - tag: YandexBot
-  action: echo 'Found YandexBot line for {ipaddress}'
+  action: echo 'Found YandexBot with ip {ipaddress}'
 - tag: Bytespider
-  action: echo 'Found Bytespider line for {ipaddress}'
+  action: echo 'Found Bytespider with ip {ipaddress}'

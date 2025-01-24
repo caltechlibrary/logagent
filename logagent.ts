@@ -56,13 +56,20 @@ export class LogAgents implements LogAgentsInterface {
   async dryRun(cfgName: string, logName: string): Promise<boolean> {
     if (await this.loadConfig(cfgName)) {
         const src = await Deno.readTextFile(logName);
+        let collected_actions: {[key: string]: string[]} = {};
         for (const line of src.split('\n')) {
             if (line !== '') {
                 const ipaddress: string = lineToIPAddress(line);
                 for (const agent of this.agents) {
                     if (line.indexOf(agent.tag) > -1) {
+                      if (collected_actions[ipaddress] === undefined) {
+                        collected_actions[ipaddress] = [];
+                      }
+                      if (collected_actions[ipaddress].indexOf(agent.action) === -1) {
+                        collected_actions[ipaddress].push(agent.action);
                         console.log(`# Agent Tag: ${agent.tag}`);
                         console.log(agent.action.replaceAll('\n', ' ').replaceAll('{ipaddress}', ipaddress));
+                      } 
                     }
                 }    
             }
@@ -77,17 +84,25 @@ export class LogAgents implements LogAgentsInterface {
         return false;
     }
     const src = await Deno.readTextFile(logName);
+    let collected_actions: {[key: string]: string[]} = {};
     
     for (const line of src.split('\n')) {
         
         const ipaddress: string = lineToIPAddress(line);
         for (const agent of this.agents) {
-            if (line.indexOf(agent.tag) > -1) {
-                let ipaddress = lineToIPAddress(line);
-                let cmd = agent.action.replaceAll('{ipaddress}', ipaddress);
-                console.log(cmd);
-                await runCmd(cmd);
+          let ipaddress = lineToIPAddress(line);
+          if (line.indexOf(agent.tag) > -1) {
+            if (collected_actions[ipaddress] === undefined) {
+              collected_actions[ipaddress] = [];
             }
+            if (collected_actions[ipaddress].indexOf(agent.action) === -1) {
+              collected_actions[ipaddress].push(agent.action);
+
+              let cmd = agent.action.replaceAll('{ipaddress}', ipaddress);
+              console.log(cmd);
+              await runCmd(cmd);
+            }
+          }
         }
     }
     return true;

@@ -12,7 +12,7 @@ authors:
 
 
 repository-code: "git+https://github.com/caltechlibrary/logagent"
-version: 0.0.1
+version: 0.0.2
 license-url: https://data.caltech.edu/license
 operating-system:
   - Linux
@@ -28,7 +28,7 @@ keywords:
 About this software
 ===================
 
-## logagent 0.0.1
+## logagent 0.0.2
 
 ### Authors
 

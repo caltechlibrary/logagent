@@ -36,10 +36,10 @@
         "macOS"
     ],
     "programmingLanguage": "TypeScript",
-    "releaseNotes": "This is a proof of concept of a simple log monitoring tool.",
     "runtimePlatform": "Deno",
     "softwareRequirements": "deno >= 2.1.7",
-    "version": "0.0.1",
+    "version": "0.0.2",
+    "releaseNotes": "Proof of concept log agent. Tag/action executed once per IP address.",
     "developmentStatus": "concept",
     "issueTracker": "https://github.com/caltechlibrary/logagent/issues"
 }

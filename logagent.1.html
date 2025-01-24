@@ -1,0 +1,109 @@
+<html lang="en-US">
+<head>
+    <title>logagent</title>
+    <link rel="stylesheet" href="/css/site.css">
+</head>
+<body>
+<nav>
+<ul>
+    <li><a href="/">Home</a></li>
+    <li><a href="index.html">README</a></li>
+    <li><a href="LICENSE">LICENSE</a></li>
+    <li><a href="INSTALL.html">INSTALL</a></li>
+    <li><a href="user_manual.html">User Manual</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="search.html">Search</a></li>
+    <li><a href="https://github.com/caltechlibrary/logagent">GitHub</a></li>
+</ul>
+</nav>
+<section>
+<h1 id="name">NAME</h1>
+<p>logagent</p>
+<h1 id="synopsis">SYNOPSIS</h1>
+<p>logagent <a href="#options">OPTIONS</a> logagent YAML_FILE LOG_FILE
+<a href="#options">OPTIONS</a></p>
+<h1 id="description">DESCRIPTION</h1>
+<p>Log agent reads input line by line. If checks if a tag (explicit sub
+string) is contained in that line. If a match is found then the agent
+extracts any IP addresses identified before applying a rule associated
+with the tag.</p>
+<p>The log agent requires a configuration file written in yaml. The
+configuration holds an array of object where each object is an agent
+configuration. The object has the following attributes.</p>
+<dl>
+<dt>tag</dt>
+<dd>
+The explicit string to search for
+</dd>
+<dt>action</dt>
+<dd>
+The command to execute if tag is found
+</dd>
+</dl>
+<p>Here’s an example configuration YAML file.</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">tag</span><span class="kw">:</span><span class="at"> BadBot</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">  action</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    sudo iptables</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    -p tcp -m multiport</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    --dports http,https</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    -j DROP</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    -s {ipaddress}</span></code></pre></div>
+<p>If the text “BadBot” is found in the log line. and the IP address
+“156.59.198.136” was found in the log line then the following command
+would be executed.</p>
+<pre class="shell"><code>    sudo iptables \
+       -p tcp -m multiport \
+       --dports http,https \
+       -j DROP \
+       -s 156.59.198.136</code></pre>
+<h1 id="options">OPTIONS</h1>
+<p>Options come as the last parameter(s) on the command line.</p>
+<dl>
+<dt>-h, –help</dt>
+<dd>
+display help
+</dd>
+<dt>-v, –version</dt>
+<dd>
+display version
+</dd>
+<dt>-l, –license</dt>
+<dd>
+display license
+</dd>
+<dt>-d, –dry_run</dt>
+<dd>
+display the commands for matching tags in the configuration. Nice for
+generating bash or Powershell scripts.
+</dd>
+</dl>
+<h1 id="examples">EXAMPLES</h1>
+<p>In example we’re looking for log lines that have the text “BadBot” or
+“BadSpider”. We’ll use iptables to ban them.</p>
+<p>Here’s the YAML config called “badbots.yaml”</p>
+<pre><code>- tag: BadBot
+  action: |
+    sudo iptables
+        -p tcp -m multiport
+        --dports http,https
+        -j DROP
+        -s {ipaddress}
+- tag: BadSpider
+  action: |
+    sudo iptables
+        -I logagent_badbot
+        -p tcp -m multiport
+        --dports http,https
+        -j DROP
+        -s {ipaddress}</code></pre>
+<p>When you run ‘logagent’ with the ‘–dry_run’ option it will show you
+the commends that will be executed for log lines with tags. Here’s an
+example using the YAML config on “access.log”</p>
+<pre><code>logagent badbots.yaml access.log --dry_run</code></pre>
+<p>If this looks OK then you can apply the tags and actions like
+this.</p>
+<pre><code>logagent badbots.yaml access.log</code></pre>
+</section>
+</body>
+</html>

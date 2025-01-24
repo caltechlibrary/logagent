@@ -11,17 +11,16 @@ async function main(): Promise<number> {
       help: "h",
       license: "l",
       version: "v",
-      dryrun: "d",
+      dry_run: "d",
     },
     default: {
       help: false,
       version: false,
       license: false,
-      dryrun: false,
+      dry_run: false,
     },
   });
   const args = app._;
-
   if (app.help) {
     console.log(fmtHelp(helpText, appName, version, releaseDate, releaseHash));
     Deno.exit(0);
@@ -35,20 +34,15 @@ async function main(): Promise<number> {
     console.log(`${appName} ${version} ${releaseDate} ${releaseHash}`);
     Deno.exit(0);
   }
-  if (args.length < 1) {
-    console.log(`USAGE: ${appName} [OPTIONS] CFG_NAME LOG_NAME`);
-    Deno.exit(1);
-  }
 
-  let agents = new LogAgents();
   const cfgName: string = (args.length > 0) ? `${args[0]}` : '';
   const logName: string = (args.length > 1) ? `${args[1]}` : '';
   if (cfgName === '' || logName === '') {
-    console.log(`USAGE: ${appName} [OPTIONS] CFG_NAME LOG_NAME`);
+    console.log(`error: cfgName -> "${cfgName}", logName: "${logName}"`);
     Deno.exit(1);  
   }
-  //console.log(`cfgName: ${cfgName}, logName: ${logName}`);
-  if (app.dryrun) {
+  let agents = new LogAgents();
+  if (app.dry_run) {
     if (await agents.dryRun(cfgName, logName)) {
       return 0;
     }  

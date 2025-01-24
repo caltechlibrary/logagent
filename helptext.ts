@@ -24,7 +24,7 @@ export const helpText =
 # SYNOPSIS
 
 {app_name} [OPTIONS]
-{app_name} [OPTIONS] YAML_FILE LOG_FILE
+{app_name} YAML_FILE LOG_FILE [OPTIONS]
 
 # DESCRIPTION
 
@@ -79,7 +79,7 @@ Options come as the last parameter(s) on the command line.
 -l, --license
 : display license
 
--d, --dryrun
+-d, --dry_run
 : display the commands for matching tags in the configuration. Nice
 for generating bash or Powershell scripts.
 
@@ -111,12 +111,12 @@ Here's the YAML config called "badbots.yaml"
         -s {ipaddress}
 ~~~
 
-When you run '{app_name}' with the '--dryrun' option it
+When you run '{app_name}' with the '--dry_run' option it
 will show you the commends that will be executed for log lines
 with tags. Here's an example using the YAML config on "access.log"
 
 ~~~
-{app_name} --dryrun badbots.yaml access.log
+{app_name} badbots.yaml access.log --dry_run
 ~~~
 
 If this looks OK then you can apply the tags and actions like this.

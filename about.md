@@ -66,5 +66,5 @@ user agent strings.
 
 ### Software Requirements
 
-- deno &gt;&#x3D; 2.1.7
+- deno &gt;&#x3D; 2.2.5
 

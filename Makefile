@@ -3,9 +3,9 @@
 #
 PROJECT = LogAgent
 
-PROGRAMS = logagent
+PROGRAMS = logagent loganalyst
 
-TS_MODS = logagent.ts
+TS_MODS = logagent.ts loganalyst.ts
 
 GIT_GROUP = caltechlibrary
 
@@ -92,9 +92,10 @@ test: .FORCE
 	deno task test
 	deno task editor_test.ts
 
-install: compile .FORCE
+install: compile man .FORCE
 	mkdir -p "${HOME}/bin"
 	cp -v "./bin/logagent$(EXT)" "${HOME}/bin"
+	cp -v "./bin/loganalyst$(EXT)" "${HOME}/bin"
 	cp -vR "./man" "${HOME}/"
 
 uninstall: .FORCE

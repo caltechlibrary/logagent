@@ -1,6 +1,8 @@
 import { parseArgs } from "@std/cli/parse-args";
-import { processLines } from './readLines.ts'; // Adjust the path as necessary
+import { processLines } from "./readLines.ts"; // Adjust the path as necessary
 import * as yaml from "@std/yaml";
+import { licenseText, releaseDate, releaseHash, version } from "./version.ts";
+import { fmtHelp, helpTextLogAnalyst as helpText } from "./helptext.ts";
 
 interface LogEntry {
   ip: string;
@@ -18,9 +20,11 @@ interface AnalysisResult {
   endpointCounts?: Record<string, Record<string, number>>;
 }
 
-export function analyzeIPAddresses(entries: LogEntry[]): Record<string, number> {
+export function analyzeIPAddresses(
+  entries: LogEntry[],
+): Record<string, number> {
   const ipCounts: Record<string, number> = {};
-  entries.forEach(entry => {
+  entries.forEach((entry) => {
     ipCounts[entry.ip] = (ipCounts[entry.ip] || 0) + 1;
   });
   return ipCounts;
@@ -28,7 +32,7 @@ export function analyzeIPAddresses(entries: LogEntry[]): Record<string, number> 
 
 export function analyzeUserAgents(entries: LogEntry[]): Record<string, number> {
   const agentCounts: Record<string, number> = {};
-  entries.forEach(entry => {
+  entries.forEach((entry) => {
     agentCounts[entry.agent] = (agentCounts[entry.agent] || 0) + 1;
   });
   return agentCounts;
@@ -36,28 +40,33 @@ export function analyzeUserAgents(entries: LogEntry[]): Record<string, number> {
 
 export function analyzePaths(entries: LogEntry[]): Record<string, number> {
   const pathCounts: Record<string, number> = {};
-  entries.forEach(entry => {
+  entries.forEach((entry) => {
     pathCounts[entry.request] = (pathCounts[entry.request] || 0) + 1;
   });
   return pathCounts;
 }
 
-export function analyzeTimePeriods(entries: LogEntry[]): Record<string, number> {
+export function analyzeTimePeriods(
+  entries: LogEntry[],
+): Record<string, number> {
   const timePeriodCounts: Record<string, number> = {};
-  entries.forEach(entry => {
+  entries.forEach((entry) => {
     const period = entry.timestamp.slice(0, 14); // Truncate to DD/MMM/YYYY:HH
     timePeriodCounts[period] = (timePeriodCounts[period] || 0) + 1;
   });
   return timePeriodCounts;
 }
 
-export function endPointAnalyser(entries: LogEntry[]): Record<string, Record<string, number>> {
+export function endPointAnalyser(
+  entries: LogEntry[],
+): Record<string, Record<string, number>> {
   const endpointCounts: Record<string, Record<string, number>> = {};
-  entries.forEach(entry => {
+  entries.forEach((entry) => {
     if (!endpointCounts[entry.request]) {
       endpointCounts[entry.request] = {};
     }
-    endpointCounts[entry.request][entry.method] = (endpointCounts[entry.request][entry.method] || 0) + 1;
+    endpointCounts[entry.request][entry.method] =
+      (endpointCounts[entry.request][entry.method] || 0) + 1;
   });
   return endpointCounts;
 }
@@ -73,18 +82,20 @@ export function summarizeAnalysis(entries: LogEntry[]): AnalysisResult {
 }
 
 export function parseLogLine(line: string): LogEntry | null {
-  const parts = line.split(' ');
+  const parts = line.split(" ");
   if (parts.length < 12) {
     console.error(`Invalid log line format: ${line}`);
     return null;
   }
   const ip = parts[0];
   const timestamp = parts[3].slice(1, -1); // Remove brackets
-  const method = parts[5].replace(/"/g, ''); // Remove quotes from method
-  const request = parts[6].replace(/"/g, ''); // Remove quotes from request
-  const agent = parts.slice(11).join(' ').replace(/"/g, ''); // Remove quotes from agent
+  const method = parts[5].replace(/"/g, ""); // Remove quotes from method
+  const request = parts[6].replace(/"/g, ""); // Remove quotes from request
+  const agent = parts.slice(11).join(" ").replace(/"/g, ""); // Remove quotes from agent
 
-  console.log(`Parsed entry: IP=${ip}, Timestamp=${timestamp}, Method=${method}, Request=${request}, Agent=${agent}`);
+  console.log(
+    `Parsed entry: IP=${ip}, Timestamp=${timestamp}, Method=${method}, Request=${request}, Agent=${agent}`,
+  );
 
   return { ip, timestamp, method, request, agent };
 }
@@ -95,7 +106,7 @@ export async function analyzeLogs(
   verbose: boolean = false,
   customRegex?: RegExp,
   analysisTypes: string[] = [],
-  outputFormat: 'json' | 'yaml' | 'csv' = 'json'
+  outputFormat: "json" | "yaml" | "csv" = "json",
 ) {
   const fileEntries: LogEntry[] = [];
 
@@ -114,42 +125,48 @@ export async function analyzeLogs(
 
   const results: AnalysisResult = {};
 
-  if (analysisTypes.length === 0 || analysisTypes.includes('summary')) {
+  if (analysisTypes.length === 0 || analysisTypes.includes("summary")) {
     Object.assign(results, summarizeAnalysis(fileEntries));
   }
 
-  if (analysisTypes.includes('ip')) {
+  if (analysisTypes.includes("ip")) {
     results.ipCounts = analyzeIPAddresses(fileEntries);
   }
 
-  if (analysisTypes.includes('agent')) {
+  if (analysisTypes.includes("agent")) {
     results.agentCounts = analyzeUserAgents(fileEntries);
   }
 
-  if (analysisTypes.includes('path')) {
+  if (analysisTypes.includes("path")) {
     results.pathCounts = analyzePaths(fileEntries);
   }
 
-  if (analysisTypes.includes('time')) {
+  if (analysisTypes.includes("time")) {
     results.timePeriodCounts = analyzeTimePeriods(fileEntries);
   }
 
-  if (analysisTypes.includes('endpoint')) {
+  if (analysisTypes.includes("endpoint")) {
     results.endpointCounts = endPointAnalyser(fileEntries);
   }
 
-  let output = '';
+  let output = "";
   switch (outputFormat) {
-    case 'json':
+    case "json":
       output = JSON.stringify(results, null, 2);
       break;
-    case 'yaml':
+    case "yaml":
       output = yaml.stringify(results);
       break;
-    case 'csv':
+    case "csv":
       output = Object.entries(results)
-        .map(([key, value]) => `${key}\n${Object.entries(value as object).map(([k, v]) => `${k},${v}`).join('\n')}`)
-        .join('\n\n');
+        .map(([key, value]) =>
+          `${key}\n${
+            Object.entries(value as object).map(([k, v]) => `${k},${v}`).join(
+              "\n",
+            )
+          }`
+        )
+        .join("\n\n");
       break;
   }
 
@@ -158,76 +175,49 @@ export async function analyzeLogs(
   await writer.close();
 }
 
-function displayHelp() {
-  const helpText = `
-# Log Analyst
-
-Analyze NginX log files to identify entries matching a specified regex.
-
-## Usage
-
-\`\`\`
-loganalyst.ts [options]
-\`\`\`
-
-## Options
-
--h, --help           Display this help message
---verbose            Display lines as they are being processed
--r, --regexp         Specify a custom regex pattern to match log entries
--a, --analysis       Specify analysis types (comma-separated): summary, ip, agent, path, time, endpoint
--o, --output         Specify output format: json, yaml, csv (default: json)
---ips                Shortcut for --analysis ip
---yaml               Shortcut for --output yaml
---endpoint          Shortcut for --analysis endpoint
-
-## Example
-
-To analyze log entries with default summary analysis:
-
-\`\`\`
-deno run --allow-read loganalyst.ts < logfile.log
-\`\`\`
-
-To analyze log entries with custom regex and specific analyses:
-
-\`\`\`
-deno run --allow-read loganalyst.ts --regexp ".*\\.zip" --analysis ip,agent --output yaml < logfile.log
-\`\`\`
-
-To analyze log entries for endpoint analysis only:
-
-\`\`\`
-deno run --allow-read loganalyst.ts --analysis endpoint < logfile.log
-\`\`\`
-
-**Note:** When specifying a regex pattern, make sure to escape special characters properly. For example, use \`\\.\` to match a literal dot.
-
-  `;
-  console.log(helpText);
-}
-
 async function main() {
+  const appName = "loganalyst";
   const args = parseArgs(Deno.args);
 
   if (args.h || args.help) {
-    displayHelp();
-  } else {
-    const customRegex = args.r || args.regexp ? new RegExp(args.r || args.regexp) : undefined;
-    let analysisTypes = (args.a || args.analysis || 'summary').split(',');
-
-    if (args.ips) {
-      analysisTypes = ['ip'];
-    }
-
-    if (args.endpoint) {
-      analysisTypes = ['endpoint'];
-    }
-
-    const outputFormat = args.yaml ? 'yaml' : (args.o || args.output || 'json') as 'json' | 'yaml' | 'csv';
-
-    await analyzeLogs(Deno.stdin.readable, Deno.stdout.writable, args.verbose, customRegex, analysisTypes, outputFormat);
+    console.log(fmtHelp(helpText, appName, version, releaseDate, releaseHash));
+    Deno.exit(0);
   }
+  if (args.l || args.license) {
+    console.log(licenseText);
+    Deno.exit(0);
+  }
+
+  if (args.v || args.version) {
+    console.log(`${appName} ${version} ${releaseDate} ${releaseHash}`);
+    Deno.exit(0);
+  }
+
+  const customRegex = args.r || args.regexp
+    ? new RegExp(args.r || args.regexp)
+    : undefined;
+  let analysisTypes = (args.a || args.analysis || "summary").split(",");
+
+  if (args.ips) {
+    analysisTypes = ["ip"];
+  }
+
+  if (args.endpoint) {
+    analysisTypes = ["endpoint"];
+  }
+
+  const outputFormat = args.yaml
+    ? "yaml"
+    : (args.o || args.output || "json") as "json" | "yaml" | "csv";
+
+  await analyzeLogs(
+    Deno.stdin.readable,
+    Deno.stdout.writable,
+    args.verbose,
+    customRegex,
+    analysisTypes,
+    outputFormat,
+  );
 }
 
 if (import.meta.main) {

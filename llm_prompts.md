@@ -400,5 +400,8 @@ The `LogEntry` interface should have a `method` attribute corresponding to the H
 
 Update `loganalyst_test.ts` to test for this new attribute.
 
+--
+
+When parsing a log entry the agent string should be saved in the `LogEntry` object without quotes. Similarly the quoted method and path should be unquoted before their values are assigned to the `LogEntry` object.
 
 

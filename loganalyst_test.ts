@@ -13,9 +13,9 @@ import {
   
   Deno.test("analyzeIPAddresses counts IP addresses correctly", () => {
     const entries = [
-      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:01 +0000", request: "/file", agent: "agent1" },
-      { ip: "192.168.1.2", timestamp: "01/Jan/2023:00:00:02 +0000", request: "/file", agent: "agent2" },
-      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:03 +0000", request: "/file", agent: "agent1" },
+      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:01 +0000", method: "GET", request: "/file", agent: "agent1" },
+      { ip: "192.168.1.2", timestamp: "01/Jan/2023:00:00:02 +0000", method: "GET", request: "/file", agent: "agent2" },
+      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:03 +0000", method: "GET", request: "/file", agent: "agent1" },
     ];
   
     const result = analyzeIPAddresses(entries);
@@ -24,9 +24,9 @@ import {
   
   Deno.test("analyzeUserAgents counts user agents correctly", () => {
     const entries = [
-      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:01 +0000", request: "/file", agent: "agent1" },
-      { ip: "192.168.1.2", timestamp: "01/Jan/2023:00:00:02 +0000", request: "/file", agent: "agent2" },
-      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:03 +0000", request: "/file", agent: "agent1" },
+      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:01 +0000", method: "GET", request: "/file", agent: "agent1" },
+      { ip: "192.168.1.2", timestamp: "01/Jan/2023:00:00:02 +0000", method: "GET", request: "/file", agent: "agent2" },
+      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:03 +0000", method: "GET", request: "/file", agent: "agent1" },
     ];
   
     const result = analyzeUserAgents(entries);
@@ -35,9 +35,9 @@ import {
   
   Deno.test("analyzePaths counts paths correctly", () => {
     const entries = [
-      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:01 +0000", request: "/file", agent: "agent1" },
-      { ip: "192.168.1.2", timestamp: "01/Jan/2023:00:00:02 +0000", request: "/file", agent: "agent2" },
-      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:03 +0000", request: "/other", agent: "agent1" },
+      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:01 +0000", method: "GET", request: "/file", agent: "agent1" },
+      { ip: "192.168.1.2", timestamp: "01/Jan/2023:00:00:02 +0000", method: "GET", request: "/file", agent: "agent2" },
+      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:03 +0000", method: "GET", request: "/other", agent: "agent1" },
     ];
   
     const result = analyzePaths(entries);
@@ -46,9 +46,9 @@ import {
   
   Deno.test("analyzeTimePeriods counts time periods correctly", () => {
     const entries = [
-      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:01 +0000", request: "/file", agent: "agent1" },
-      { ip: "192.168.1.2", timestamp: "01/Jan/2023:01:00:02 +0000", request: "/file", agent: "agent2" },
-      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:03 +0000", request: "/file", agent: "agent1" },
+      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:01 +0000", method: "GET", request: "/file", agent: "agent1" },
+      { ip: "192.168.1.2", timestamp: "01/Jan/2023:01:00:02 +0000", method: "GET", request: "/file", agent: "agent2" },
+      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:03 +0000", method: "GET", request: "/file", agent: "agent1" },
     ];
   
     const result = analyzeTimePeriods(entries);
@@ -57,9 +57,9 @@ import {
   
   Deno.test("endPointAnalyser analyzes endpoints correctly", () => {
     const entries = [
-      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:01 +0000", request: "GET /file", agent: "agent1" },
-      { ip: "192.168.1.2", timestamp: "01/Jan/2023:00:00:02 +0000", request: "POST /file", agent: "agent2" },
-      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:03 +0000", request: "GET /other", agent: "agent1" },
+      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:01 +0000", method: "GET", request: "/file", agent: "agent1" },
+      { ip: "192.168.1.2", timestamp: "01/Jan/2023:00:00:02 +0000", method: "POST", request: "/file", agent: "agent2" },
+      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:03 +0000", method: "GET", request: "/other", agent: "agent1" },
     ];
   
     const result = endPointAnalyser(entries);
@@ -71,9 +71,9 @@ import {
   
   Deno.test("summarizeAnalysis aggregates all analyses correctly", () => {
     const entries = [
-      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:01 +0000", request: "GET /file", agent: "agent1" },
-      { ip: "192.168.1.2", timestamp: "01/Jan/2023:01:00:02 +0000", request: "POST /file", agent: "agent2" },
-      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:03 +0000", request: "GET /other", agent: "agent1" },
+      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:01 +0000", method: "GET", request: "/file", agent: "agent1" },
+      { ip: "192.168.1.2", timestamp: "01/Jan/2023:01:00:02 +0000", method: "POST", request: "/file", agent: "agent2" },
+      { ip: "192.168.1.1", timestamp: "01/Jan/2023:00:00:03 +0000", method: "GET", request: "/other", agent: "agent1" },
     ];
   
     const result = summarizeAnalysis(entries);
@@ -100,19 +100,22 @@ import {
       {
         ip: "8.210.147.121",
         timestamp: "25/Mar/2025:00:00:14 +0000",
-        request: "GET /records/dn9cj-ehd72/files/knee_train_lmdb.zip?download=1",
+        method: "GET",
+        request: "/records/dn9cj-ehd72/files/knee_train_lmdb.zip?download=1",
         agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3608.7 Safari/537.36",
       },
       {
         ip: "66.249.74.136",
         timestamp: "25/Mar/2025:00:00:20 +0000",
-        request: "GET /records/rd2f5-dwc23/files/Lev2:metadata.json?download=1",
+        method: "GET",
+        request: "/records/rd2f5-dwc23/files/Lev2:metadata.json?download=1",
         agent: "Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.6998.165 Mobile Safari/537.36 (compatible; GoogleOther)",
       },
       {
         ip: "47.242.234.100",
         timestamp: "25/Mar/2025:00:00:25 +0000",
-        request: "HEAD /records/dn9cj-ehd72/files/knee_train_lmdb.zip?download=1",
+        method: "HEAD",
+        request: "/records/dn9cj-ehd72/files/knee_train_lmdb.zip?download=1",
         agent: "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.2514.118 Safari/537.36",
       },
     ];

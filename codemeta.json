@@ -39,7 +39,7 @@
   ],
   "runtimePlatform": "Deno",
   "softwareRequirements": [
-    "deno >= 2.1.7"
+    "deno >= 2.2.5"
   ],
   "version": "0.0.3",
   "developmentStatus": "concept",

@@ -5,6 +5,7 @@ import * as yaml from "@std/yaml";
 interface LogEntry {
   ip: string;
   timestamp: string; // Changed to string
+  method: string; // New attribute for HTTP method
   request: string;
   agent: string;
 }
@@ -53,11 +54,10 @@ export function analyzeTimePeriods(entries: LogEntry[]): Record<string, number> 
 export function endPointAnalyser(entries: LogEntry[]): Record<string, Record<string, number>> {
   const endpointCounts: Record<string, Record<string, number>> = {};
   entries.forEach(entry => {
-    const [method, path] = entry.request.split(' ');
-    if (!endpointCounts[path]) {
-      endpointCounts[path] = {};
+    if (!endpointCounts[entry.request]) {
+      endpointCounts[entry.request] = {};
     }
-    endpointCounts[path][method] = (endpointCounts[path][method] || 0) + 1;
+    endpointCounts[entry.request][entry.method] = (endpointCounts[entry.request][entry.method] || 0) + 1;
   });
   return endpointCounts;
 }
@@ -80,12 +80,13 @@ export function parseLogLine(line: string): LogEntry | null {
   }
   const ip = parts[0];
   const timestamp = parts[3].slice(1, -1); // Remove brackets
-  const request = parts[5] + ' ' + parts[6];
-  const agent = parts.slice(11).join(' ');
+  const method = parts[5].replace(/"/g, ''); // Remove quotes from method
+  const request = parts[6].replace(/"/g, ''); // Remove quotes from request
+  const agent = parts.slice(11).join(' ').replace(/"/g, ''); // Remove quotes from agent
 
-  console.log(`Parsed entry: IP=${ip}, Timestamp=${timestamp}, Request=${request}, Agent=${agent}`);
+  console.log(`Parsed entry: IP=${ip}, Timestamp=${timestamp}, Method=${method}, Request=${request}, Agent=${agent}`);
 
-  return { ip, timestamp, request, agent };
+  return { ip, timestamp, method, request, agent };
 }
 
 export async function analyzeLogs(
@@ -178,6 +179,7 @@ loganalyst.ts [options]
 -o, --output         Specify output format: json, yaml, csv (default: json)
 --ips                Shortcut for --analysis ip
 --yaml               Shortcut for --output yaml
+--endpoint          Shortcut for --analysis endpoint
 
 ## Example
 
@@ -191,6 +193,12 @@ To analyze log entries with custom regex and specific analyses:
 
 \`\`\`
 deno run --allow-read loganalyst.ts --regexp ".*\\.zip" --analysis ip,agent --output yaml < logfile.log
+\`\`\`
+
+To analyze log entries for endpoint analysis only:
+
+\`\`\`
+deno run --allow-read loganalyst.ts --analysis endpoint < logfile.log
 \`\`\`
 
 **Note:** When specifying a regex pattern, make sure to escape special characters properly. For example, use \`\\.\` to match a literal dot.
@@ -210,6 +218,10 @@ async function main() {
 
     if (args.ips) {
       analysisTypes = ['ip'];
+    }
+
+    if (args.endpoint) {
+      analysisTypes = ['endpoint'];
     }
 
     const outputFormat = args.yaml ? 'yaml' : (args.o || args.output || 'json') as 'json' | 'yaml' | 'csv';

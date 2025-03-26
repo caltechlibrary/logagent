@@ -394,4 +394,11 @@ Update `loganalyst_test.ts` to test the new `endPointAnalyser`.
 
 Add a command line option to `loganalyst.ts` for selecting just the end point analysis. Update the helptext to include an example.
 
+---
+
+The `LogEntry` interface should have a `method` attribute corresponding to the HTTP method record in the log file.
+
+Update `loganalyst_test.ts` to test for this new attribute.
+
+
 

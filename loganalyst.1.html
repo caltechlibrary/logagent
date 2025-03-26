@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <title>logagent</title>
+    <link rel="stylesheet" href="/css/site.css">
+</head>
+<body>
+<nav>
+<ul>
+    <li><a href="/">Home</a></li>
+    <li><a href="index.html">README</a></li>
+    <li><a href="LICENSE">LICENSE</a></li>
+    <li><a href="INSTALL.html">INSTALL</a></li>
+    <li><a href="user_manual.html">User Manual</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="search.html">Search</a></li>
+    <li><a href="https://github.com/caltechlibrary/logagent">GitHub</a></li>
+</ul>
+</nav>
+<section>
+<h1 id="log-analyst">Log Analyst</h1>
+<p>Analyze NginX log files to identify entries matching a specified
+regex.</p>
+<h2 id="usage">Usage</h2>
+<pre><code>loganalyst.ts [options]</code></pre>
+<h2 id="options">Options</h2>
+<p>-h, –help Display this help message –verbose Display lines as they
+are being processed -r, –regexp Specify a custom regex pattern to match
+log entries -a, –analysis Specify analysis types (comma-separated):
+summary, ip, agent, path, time, endpoint -o, –output Specify output
+format: json, yaml, csv (default: json) –ips Shortcut for –analysis ip
+–yaml Shortcut for –output yaml –endpoint Shortcut for –analysis
+endpoint</p>
+<h2 id="example">Example</h2>
+<p>To analyze log entries with default summary analysis:</p>
+<pre><code>deno run --allow-read loganalyst.ts &lt; logfile.log</code></pre>
+<p>To analyze log entries with custom regex and specific analyses:</p>
+<pre><code>deno run --allow-read loganalyst.ts --regexp &quot;.*\.zip&quot; --analysis ip,agent --output yaml &lt; logfile.log</code></pre>
+<p>To analyze log entries for endpoint analysis only:</p>
+<pre><code>deno run --allow-read loganalyst.ts --analysis endpoint &lt; logfile.log</code></pre>
+<p><strong>Note:</strong> When specifying a regex pattern, make sure to
+escape special characters properly. For example, use <code>\.</code> to
+match a literal dot.</p>
+</section>
+</body>
+</html>

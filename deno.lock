@@ -27,6 +27,11 @@
   "redirects": {
     "https://deno.land/std/io/bufio.ts": "https://deno.land/std@0.224.0/io/bufio.ts"
   },
+  "remote": {
+    "https://deno.land/std@0.152.0/datetime/formatter.ts": "7c8e6d16a0950f400aef41b9f1eb9168249869776ec520265dfda785d746589e",
+    "https://deno.land/std@0.152.0/datetime/mod.ts": "701f01f0a3c9d4a6e7802ad245ac6dbef1118bdb104ef7965107d6dd8a0ebaf9",
+    "https://deno.land/std@0.152.0/datetime/tokenizer.ts": "7381e28f6ab51cb504c7e132be31773d73ef2f3e1e50a812736962b9df1e8c47"
+  },
   "workspace": {
     "dependencies": [
       "jsr:@std/assert@^1.0.11",

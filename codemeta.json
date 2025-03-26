@@ -1,45 +1,49 @@
 {
-    "@context": "https://w3id.org/codemeta/3.0",
-    "type": "SoftwareSourceCode",
-    "applicationCategory": "software",
-    "author": [
-        {
-            "id": "https://orcid.org/0000-0003-0900-6903",
-            "type": "Person",
-            "affiliation": {
-                "type": "Organization",
-                "name": "Caltech Library, California Institute of Technology"
-            },
-            "email": "rsdoiel@caltech.edu",
-            "familyName": "Doiel",
-            "givenName": "R. S."
-        }
-    ],
-    "codeRepository": "git+https://github.com/caltechlibrary/logagent",
-    "dateCreated": "2025-01-23",
-    "dateModified": "2025-01-23",
-    "description": "This software scans each line of a log file for an explicit string, finds the IP address and in the log line and applies an designated action.",
-    "downloadUrl": "https://github.com/caltechlibrary/logagent/releases",
-    "funder": {
+  "@context": "https://w3id.org/codemeta/3.0",
+  "type": "SoftwareSourceCode",
+  "codeRepository": "git+https://github.com/caltechlibrary/logagent",
+  "author": [
+    {
+      "id": "https://orcid.org/0000-0003-0900-6903",
+      "type": "Person",
+      "givenName": "R. S.",
+      "familyName": "Doiel",
+      "affiliation": {
         "type": "Organization",
-        "name": "Caltech Library"
-    },
-    "keywords": [
-        "logging",
-        "agents"
-    ],
-    "license": "https://data.caltech.edu/license",
-    "name": "logagent",
-    "operatingSystem": [
-        "Linux",
-        "Windows",
-        "macOS"
-    ],
-    "programmingLanguage": "TypeScript",
-    "runtimePlatform": "Deno",
-    "softwareRequirements": "deno >= 2.1.7",
-    "version": "0.0.2",
-    "releaseNotes": "Proof of concept log agent. Tag/action executed once per IP address.",
-    "developmentStatus": "concept",
-    "issueTracker": "https://github.com/caltechlibrary/logagent/issues"
+        "name": "Caltech Library, California Institute of Technology"
+      },
+      "email": "rsdoiel@caltech.edu"
+    }
+  ],
+  "dateCreated": "2025-01-23",
+  "dateModified": "2025-03-25",
+  "description": "This software is for working with web logs (NginX) scanning log entries. It includes two tools. LogAgent will scan each line of a log file for an explicit string, finds the IP \naddress and in the log line and applies an designated action. The second tool LogAnalyst is a tool explore some patterns in the log entries such as ip address, paths and methods, \nuser agent strings.",
+  "funder": {
+    "type": "Organization",
+    "name": "Caltech Library"
+  },
+  "keywords": [
+    "logging",
+    "agents",
+    "analyzer"
+  ],
+  "name": "logagent",
+  "license": "https://data.caltech.edu/license",
+  "operatingSystem": [
+    "Linux",
+    "Windows",
+    "macOS"
+  ],
+  "programmingLanguage": [
+    "TypeScript"
+  ],
+  "runtimePlatform": "Deno",
+  "softwareRequirements": [
+    "deno >= 2.1.7"
+  ],
+  "version": "0.0.3",
+  "developmentStatus": "concept",
+  "issueTracker": "https://github.com/caltechlibrary/logagent/issues",
+  "downloadUrl": "https://github.com/caltechlibrary/logagent/releases",
+  "releaseNotes": "Proof of concept log agent. Tag/action executed once per IP address. Including a proof of concept log analyst tool."
 }

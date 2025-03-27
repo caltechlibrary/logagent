@@ -1,8 +1,7 @@
 ---
 title: logagent
-abstract: "This software is for working with web logs (NginX) scanning log entries. It includes two tools. LogAgent will scan each line of a log file for an explicit string, finds the IP 
-address and in the log line and applies an designated action. The second tool LogAnalyst is a tool explore some patterns in the log entries such as ip address, paths and methods, 
-user agent strings."
+abstract: "LogAgent was designed detecting bot based on log entries searching for specific sub strings. LogAnalyst was written to aggregate the structure in our logs to provide simple count 
+relations between log fields. The are intended to work with the NginX access logs we generate from our RDM instances. The tooling may work with other types of logs."
 authors:
   - family_name: Doiel
     given_name: R. S.
@@ -26,7 +25,7 @@ keywords:
   - agents
   - analyzer
 
-
+date_released: 2024-03-26
 ---
 
 About this software
@@ -34,7 +33,7 @@ About this software
 
 ## logagent 0.0.3
 
-Proof of concept log agent. Tag/action executed once per IP address. Including a proof of concept log analyst tool.
+Working proof of concept fo LogAgent and LogAnalyst.
 
 ### Authors
 
@@ -44,9 +43,8 @@ Proof of concept log agent. Tag/action executed once per IP address. Including a
 
 
 
-This software is for working with web logs (NginX) scanning log entries. It includes two tools. LogAgent will scan each line of a log file for an explicit string, finds the IP 
-address and in the log line and applies an designated action. The second tool LogAnalyst is a tool explore some patterns in the log entries such as ip address, paths and methods, 
-user agent strings.
+LogAgent was designed detecting bot based on log entries searching for specific sub strings. LogAnalyst was written to aggregate the structure in our logs to provide simple count 
+relations between log fields. The are intended to work with the NginX access logs we generate from our RDM instances. The tooling may work with other types of logs.
 
 - License: <https://data.caltech.edu/license>
 - GitHub: <git+https://github.com/caltechlibrary/logagent>

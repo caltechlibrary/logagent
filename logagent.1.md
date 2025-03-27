@@ -1,6 +1,6 @@
-%logagent(1) user manual | version 0.0.3 00568b8
+%logagent(1) user manual | version 0.0.3 5299724
 % R. S. Doiel
-% 2025-03-25
+% 2025-03-26
 
 # NAME
 

@@ -400,8 +400,126 @@ The `LogEntry` interface should have a `method` attribute corresponding to the H
 
 Update `loganalyst_test.ts` to test for this new attribute.
 
---
+---
 
 When parsing a log entry the agent string should be saved in the `LogEntry` object without quotes. Similarly the quoted method and path should be unquoted before their values are assigned to the `LogEntry` object.
 
+---
 
+I need to `parseLogLine` function to correctly parse this Apache log example.
+
+```
+20.43.120.29 - - [25/Mar/2025:15:50:00 +0000] "GET /cgi/export/eprint/16341/RDFXML/caltechthesis-eprint-16341.rdf HTTP/1.1" 500 624
+20.43.120.29 - - [25/Mar/2025:15:56:07 +0000] "GET /cgi/export/eprint/8736/RDFXML/caltechthesis-eprint-8736.rdf HTTP/1.1" 500 624
+20.43.120.29 - - [25/Mar/2025:17:01:55 +0000] "GET /cgi/export/eprint/14094/RDFXML/caltechthesis-eprint-14094.rdf HTTP/1.1" 500 624
+20.43.120.29 - - [25/Mar/2025:22:32:08 +0000] "GET /cgi/export/eprint/9739/RDFXML/caltechthesis-eprint-9739.rdf HTTP/1.1" 500 624
+54.36.232.187 - - [25/Mar/2025:08:49:23 +0000] "GET /cgi/export/eprint/435/RDFXML/caltechthesis-eprint-435.rdf HTTP/1.1" 500 624
+89.58.51.171 - - [25/Mar/2025:10:02:40 +0000] "GET /cgi/export/eprint/1460/RDFXML/caltechthesis-eprint-1460.rdf HTTP/1.1" 500 624
+95.217.9.43 - - [25/Mar/2025:09:03:31 +0000] "GET /cgi/export/eprint/395/RDFXML/caltechthesis-eprint-395.rdf HTTP/1.1" 500 624
+```
+
+---
+
+The `LogEntry` interface needs to include `status`. `parseLogLine` needs to work for both NginX and Apache access logs.
+
+The `AnalystResult` interface needs to include counts for `status`.
+
+If the `LogEntry` attribute `agent` is not found in a log entry it should be set to the value `missing_in_log`.
+
+---
+
+The `console.log` output for debugging should only be shown when the option `-v` or `--verbose` is used in `loganalyst.ts`.
+
+---
+
+Update `loganalyst_test.ts` to changes in `loganalyst.ts`.
+
+---
+
+The `parseLogLine` function isn't quite correct yet.
+
+If the log entry text is
+
+```
+20.43.120.29 - - [25/Mar/2025:15:50:00 +0000] "GET /cgi/export/eprint/16341/RDFXML/caltechthesis-eprint-16341.rdf HTTP/1.1" 500 624
+```
+
+The `ip` attribute value is `20.43.120.29`.
+The `timestamp` attribute value is `25/Mar/2025:15:50:00 +0000`.
+The `agent` attribute value is `missing_in_log`
+The `method` attribute value should be `GET`
+The `request` attribute value should be `/cgi/export/eprint/16341/RDFXML/caltechthesis-eprint-16341.rdf`
+The `status` attribute value should be `500`
+
+Can you fix this?
+
+---
+
+When I run `deno test loganalyst_test.ts` I get the error below, can you explain this?
+
+```
+parseLogLine parses valid log lines correctly => ./loganalyst_test.ts:105:6
+error: AssertionError: Values are not equal.
+
+
+    [Diff] Actual / Expected
+
+
+    {
+      agent: "missing_in_log",
+      ip: "20.43.120.29",
+      method: "GET",
+      request: "/cgi/export/eprint/16341/RDFXML/caltechthesis-eprint-16341.rdf",
+      status: "500",
+-     timestamp: "25/Mar/2025:15:50:0",
++     timestamp: "25/Mar/2025:15:50:00 +0000",
+    }
+
+  throw new AssertionError(message);
+        ^
+    at assertEquals (https://jsr.io/@std/assert/1.0.11/equals.ts:64:9)
+    at file:///Users/rsdoiel/src/github.com/caltechlibrary/logagent/loganalyst_test.ts:141:5
+    at Array.forEach (<anonymous>)
+    at file:///Users/rsdoiel/src/github.com/caltechlibrary/logagent/loganalyst_test.ts:139:14
+
+```
+
+---
+
+The `timestamp` is now correct in the log entry but the function `analyzeTimePeriods` is not parsing the timestamp correctly to form a the value of the `period` variable.   The `period` should hold the representation for year, month, day and hour. Can you fix this?
+
+---
+
+Please replace `parseLogLine` function with
+
+```
+export function parseLogLine(line: string, verbose: boolean): LogEntry | null {
+  const parts = line.split(' ');
+  if (parts.length < 10) {
+    console.error(`Invalid log line format: ${line}`);
+    return null;
+  }
+  const ip = parts[0];
+  const timestamp = parts[3].replace('[', '').replace(']', ''); // Remove brackets
+  const method = parts[5].slice(1); // Extract method
+  const request = parts[6]; // Extract request
+  const status = parts[8]; // Extract status code
+  const agent = parts.slice(11).join(' ').replace(/"/g, '') || 'missing_in_log'; // Remove quotes from agent or set to 'missing_in_log'
+
+  if (verbose) {
+    console.log(`Parsed entry: IP=${ip}, Timestamp=${timestamp}, Method=${method}, Request=${request}, Status=${status}, Agent=${agent}`);
+  }
+
+  return { ip, timestamp, method, request, status, agent };
+}
+```
+
+---
+
+In `parseLogLine` I need a more robust approach. Take a tokenizing approach. A token can start with a letter, number, the `[` character or `-` or quote. If a token starts with a letter or number then it stops with a space is encountered or end of line. If the token starts with a quote then it ends with the matching, unescaped, quote.  The letter "\" is used as the escape symbol. If the token starts with `[` it may contain spaces and the token does not end until `]`. 
+
+As the line is evaluated each token is appended to the `parts` array.
+
+---
+
+Update `loganalyst_test.ts` to reflect the changes in `parseLogLine`.

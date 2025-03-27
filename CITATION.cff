@@ -3,9 +3,8 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 type: software
 title: logagent
-abstract: "This software is for working with web logs (NginX) scanning log entries. It includes two tools. LogAgent will scan each line of a log file for an explicit string, finds the IP 
-address and in the log line and applies an designated action. The second tool LogAnalyst is a tool explore some patterns in the log entries such as ip address, paths and methods, 
-user agent strings."
+abstract: "LogAgent was designed detecting bot based on log entries searching for specific sub strings. LogAnalyst was written to aggregate the structure in our logs to provide simple count 
+relations between log fields. The are intended to work with the NginX access logs we generate from our RDM instances. The tooling may work with other types of logs."
 authors:
   - family-names: Doiel
     given-names: R. S.
@@ -15,7 +14,7 @@ authors:
 
 repository-code: "git+https://github.com/caltechlibrary/logagent"
 version: 0.0.3
-
+date-released: 2024-03-26
 
 license-url: "https://data.caltech.edu/license"
 keywords:

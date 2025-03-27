@@ -1,7 +1,11 @@
 *~
 *.swp
 *.bak
+*.yaml
+*.json
+*.log
 bin
 dist
 man
 sandbox
+llm_prompts*.html

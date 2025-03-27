@@ -18,29 +18,93 @@
 </ul>
 </nav>
 <section>
-<h1 id="log-analyst">Log Analyst</h1>
-<p>Analyze NginX log files to identify entries matching a specified
-regex.</p>
-<h2 id="usage">Usage</h2>
-<pre><code>loganalyst.ts [options]</code></pre>
-<h2 id="options">Options</h2>
-<p>-h, –help Display this help message –verbose Display lines as they
-are being processed -r, –regexp Specify a custom regex pattern to match
-log entries -a, –analysis Specify analysis types (comma-separated):
-summary, ip, agent, path, time, endpoint -o, –output Specify output
-format: json, yaml, csv (default: json) –ips Shortcut for –analysis ip
-–yaml Shortcut for –output yaml –endpoint Shortcut for –analysis
-endpoint</p>
-<h2 id="example">Example</h2>
-<p>To analyze log entries with default summary analysis:</p>
-<pre><code>deno run --allow-read loganalyst.ts &lt; logfile.log</code></pre>
-<p>To analyze log entries with custom regex and specific analyses:</p>
-<pre><code>deno run --allow-read loganalyst.ts --regexp &quot;.*\.zip&quot; --analysis ip,agent --output yaml &lt; logfile.log</code></pre>
-<p>To analyze log entries for endpoint analysis only:</p>
-<pre><code>deno run --allow-read loganalyst.ts --analysis endpoint &lt; logfile.log</code></pre>
-<p><strong>Note:</strong> When specifying a regex pattern, make sure to
-escape special characters properly. For example, use <code>\.</code> to
-match a literal dot.</p>
+<h1 id="name">NAME</h1>
+<p>loganalyst</p>
+<h1 id="synopsis">SYNOPSIS</h1>
+<p>loganalyst <a href="#options">OPTIONS</a> loganalyst YAML_FILE
+LOG_FILE <a href="#options">OPTIONS</a></p>
+<h1 id="description">DESCRIPTION</h1>
+<p>Log agent reads input line by line. If checks if a tag (explicit sub
+string) is contained in that line. If a match is found then the agent
+extracts any IP addresses identified before applying a rule associated
+with the tag.</p>
+<p>The log agent requires a configuration file written in yaml. The
+configuration holds an array of object where each object is an agent
+configuration. The object has the following attributes.</p>
+<dl>
+<dt>tag</dt>
+<dd>
+The explicit string to search for
+</dd>
+<dt>action</dt>
+<dd>
+The command to execute if tag is found
+</dd>
+</dl>
+<p>Here’s an example configuration YAML file.</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">tag</span><span class="kw">:</span><span class="at"> BadBot</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">  action</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    sudo iptables</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    -p tcp -m multiport</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    --dports http,https</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    -j DROP</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    -s {ipaddress}</span></code></pre></div>
+<p>If the text “BadBot” is found in the log line. and the IP address
+“156.59.198.136” was found in the log line then the following command
+would be executed.</p>
+<pre class="shell"><code>    sudo iptables \
+       -p tcp -m multiport \
+       --dports http,https \
+       -j DROP \
+       -s 156.59.198.136</code></pre>
+<h1 id="options">OPTIONS</h1>
+<p>Options come as the last parameter(s) on the command line.</p>
+<dl>
+<dt>-h, –help</dt>
+<dd>
+display help
+</dd>
+<dt>-v, –version</dt>
+<dd>
+display version
+</dd>
+<dt>-l, –license</dt>
+<dd>
+display license
+</dd>
+<dt>-d, –dry_run</dt>
+<dd>
+display the commands for matching tags in the configuration. Nice for
+generating bash or Powershell scripts.
+</dd>
+</dl>
+<h1 id="examples">EXAMPLES</h1>
+<p>In example we’re looking for log lines that have the text “BadBot” or
+“BadSpider”. We’ll use iptables to ban them.</p>
+<p>Here’s the YAML config called “badbots.yaml”</p>
+<pre><code>- tag: BadBot
+  action: |
+    sudo iptables
+        -p tcp -m multiport
+        --dports http,https
+        -j DROP
+        -s {ipaddress}
+- tag: BadSpider
+  action: |
+    sudo iptables
+        -I logagent_badbot
+        -p tcp -m multiport
+        --dports http,https
+        -j DROP
+        -s {ipaddress}</code></pre>
+<p>When you run ‘loganalyst’ with the ‘–dry_run’ option it will show you
+the commends that will be executed for log lines with tags. Here’s an
+example using the YAML config on “access.log”</p>
+<pre><code>loganalyst badbots.yaml access.log --dry_run</code></pre>
+<p>If this looks OK then you can apply the tags and actions like
+this.</p>
+<pre><code>loganalyst badbots.yaml access.log</code></pre>
 </section>
 </body>
 </html>

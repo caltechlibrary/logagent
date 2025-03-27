@@ -3,7 +3,7 @@ import * as yaml from "@std/yaml";
 import { processLines } from './readLines.ts';
 import { tokenize, tokenizeUnquote } from './logtok.ts';
 import { licenseText, releaseDate, releaseHash, version } from "./version.ts";
-import { fmtHelp, helpTextLogAgent as helpText } from "./helptext.ts";
+import { fmtHelp, helpTextLogAnalyst as helpText } from "./helptext.ts";
 
 
 interface LogEntry {

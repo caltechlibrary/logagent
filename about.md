@@ -10,7 +10,7 @@ authors:
 
 
 repository_code: git+https://github.com/caltechlibrary/logagent
-version: 0.0.3
+version: 0.0.4
 license_url: https://data.caltech.edu/license
 operating_system:
   - Linux
@@ -31,7 +31,7 @@ date_released: 2024-03-26
 About this software
 ===================
 
-## logagent 0.0.3
+## logagent 0.0.4
 
 Working proof of concept fo LogAgent and LogAnalyst.
 

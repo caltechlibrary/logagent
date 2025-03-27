@@ -1,8 +1,8 @@
 // logagent version and license information.
 
-export const version = '0.0.3',
+export const version = '0.0.4',
 releaseDate = '2025-03-26',
-releaseHash = '5299724',
+releaseHash = '8c39526',
 licenseText = `
 
 Copyright (c) 2025, Caltech

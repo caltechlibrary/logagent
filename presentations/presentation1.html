@@ -7,7 +7,7 @@
   <meta http-equiv="Content-Style-Type" content="text/css" />
   <meta name="generator" content="pandoc" />
   <meta name="author" content="R. S. Doiel, rsdoiel@caltech.edu" />
-  <meta name="date" content="2025-01-24" />
+  <meta name="date" content="2025-03-26" />
   <meta name="keywords" content="logs, bots" />
   <title>Log Agent, rational and how it works</title>
   <style type="text/css">
@@ -107,14 +107,28 @@ class="email">rsdoiel@caltech.edu</a>
   <p class="institute">
 <p>Caltech Library, Digital Library Development</p>
   </p>
-  <p class="date">2025-01-24</p>
+  <p class="date">2025-03-26</p>
 </div>
 <div class="slide" id="TOC">
 
 </div>
-<div id="log-agent-rational-and-usage" class="slide section level1">
-<h1>Log Agent, rational and usage</h1>
-<p>Why Log Agent?</p>
+<div id="logagent-and-loganalyst-rational-and-usage"
+class="slide section level1">
+<h1>LogAgent and LogAnalyst, rational and usage</h1>
+<dl>
+<dt>LogAgent</dt>
+<dd>
+A simple way to use a sub string in a log to trigger an action
+</dd>
+<dt>LogAnalyst</dt>
+<dd>
+A simple way to aggregate counts by turning NginX log entries into
+structured data.
+</dd>
+</dl>
+</div>
+<div id="why-logagent" class="slide section level1">
+<h1>Why LogAgent?</h1>
 <ul>
 <li>fail2ban is very capable</li>
 <li>fail2ban became challenging to do a simple things</li>
@@ -175,9 +189,25 @@ be executed. Given the example action that means the IP address
 associated with log lines containing “BadBot” are banned from connecting
 to ports 80 and 443.</p>
 </div>
+<div id="why-loganalyst" class="slide section level1">
+<h1>Why LogAnalyst</h1>
+<p>Sometimes the bots aren’t the problem and the system runs well. Often
+I’ve found my self grepping the log for specific things to total up.
+LogAnalyst automates some of this activity. It reads in a stream of log
+entries, tokenizes them into a structured record then performs some
+analysis. The analyst is returned as a JSON object.</p>
+<p>The tokenization part is the tricky bit, fortunately it’s implemented
+as a TypeScript module.</p>
+</div>
+<div id="loganalyst-in-the-future" class="slide section level1">
+<h1>LogAnalyst in the future</h1>
+<p>I suspect I will add different types of analysis over time. As the
+<code>logtok.ts</code> module improves what I learn in LogAnalyst will
+be fed back into LogAgent.</p>
+</div>
 <div id="reminder" class="slide section level1">
 <h1>Reminder</h1>
-<p>Log Agent is an experimental “proof of concept” simple log processor
+<p>LogAgent is an experimental “proof of concept” simple log processor
 written in TypeScript and compiled with Deno into a stand alone
 executable. It is a naive tool so take care with the action you assign
 for a tag.</p>

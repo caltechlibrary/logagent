@@ -1,4 +1,4 @@
-%logagent(1) user manual | version 0.0.4 cc71e54
+%logagent(1) user manual | version 0.0.4 920328d
 % R. S. Doiel
 % 2025-03-26
 

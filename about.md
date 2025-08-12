@@ -43,6 +43,7 @@ Working proof of concept fo LogAgent and LogAnalyst.
 
 
 
+
 LogAgent was designed detecting bot based on log entries searching for specific sub strings. LogAnalyst was written to aggregate the structure in our logs to provide simple count 
 relations between log fields. The are intended to work with the NginX access logs we generate from our RDM instances. The tooling may work with other types of logs.
 
@@ -64,5 +65,8 @@ relations between log fields. The are intended to work with the NginX access log
 
 ### Software Requirements
 
-- deno &gt;&#x3D; 2.2.5
+- deno >= 2.2.5
+
+
+
 

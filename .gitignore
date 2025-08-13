@@ -4,6 +4,7 @@
 *.yaml
 *.json
 *.log
+*.db
 bin
 dist
 man

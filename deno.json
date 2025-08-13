@@ -8,6 +8,7 @@
     "readlines_test.ts": "deno test readlines_test.ts",
     "logtok_test.ts": "deno test logtok_test.ts",
     "build": "deno task gen-code ; deno task compile ; deno task manpage",
+    "logToSQL": "deno compile --allow-read --output ./bin/logToSQL logToSQL.ts",
   	"compile": "deno task compile_logagent ; deno task compile_loganalyst",
     "compile_logagent": "deno compile --allow-read --allow-write --allow-run --output ./bin/logagent logagent.ts",
     "compile_loganalyst": "deno compile --allow-read --allow-write --allow-env --allow-ffi --output ./bin/loganalyst loganalyst.ts",

@@ -133,16 +133,51 @@ export const helpTextLogAnalyst =
 
 # SYNOPSIS
 
-{app_name} [OPTIONS] < LOG_FILEPATH
+{app_name} [OPTIONS]
+{app_name} ACTION PARAMETERS
 
 # DESCRIPTION
 
-Log Analyst analyzes NginX logs entries through aggregating counts. 
-It works on a stream of entries, one per lines. It supports various
-options such as filter using an optional regex (\`--regexp\` or \`-r\`).
-The analyst corresponds the columns defined in the NginX access log
-aggregated with counts. The intent is to be able to quickly scan
-an access log file for spikes or patterns.
+{app_name} can capture NginX/Apache logs entries into an SQLite3 database.
+It use that database for summary and analys.
+
+# ACTION
+
+harvest  DB_NAME LOGFILE_PATH [OPTIONS]
+: Import log entries into SQLite3 database
+
+analyze DB_NAME [ANALYSIS_TYPE] [OPTIONS]
+: Run analyses on harvested logs. Default analysis is a summary.
+
+help
+: Display this help page
+
+# ANALYSIS_TYPE
+
+ip
+: IP address counts
+
+agent
+: User agent counts
+
+path
+: Request path counts
+
+time
+: Time period counts
+
+endpoint
+: Endpoint method counts
+
+status
+: HTTP status code counts
+
+subnet
+: Subnet swarming detection
+
+summary
+: All analyses (default)
+
 
 # OPTIONS
 
@@ -155,7 +190,7 @@ an access log file for spikes or patterns.
 --version
 : Display version
 
---verbose
+-V, --verbose
 : Display lines as they are being processed
 
 -r, --regexp
@@ -164,17 +199,12 @@ an access log file for spikes or patterns.
 -a, --analysis
 : Specify analysis types (comma-separated): summary, ip, agent, path, time, endpoint
 
--o, --output
-: Specify output format: json, yaml, csv (default: json)
+-a, --action=FILE
+: Load actions from a YAML config file to block swarming subnets.
 
---ips
-: Shortcut for --analysis ip
+-o, --output=FMT
+: Output format: json, yaml, or csv. Default: json.
 
---yaml
-: Shortcut for --output yaml
-
---endpoint
-: Shortcut for --analysis endpoint
 
 ## EXAMPLES
 
@@ -197,5 +227,52 @@ To analyze log entries for endpoint analysis only:
 ~~~
 
 **Note:** When specifying a regex pattern, make sure to escape special characters properly. For example, use \`.\` to match a literal dot.
-  
+
+
+### 1. Basic Analysis
+~~~sh
+cat access.log | deno run --allow-read loganalyst.ts
+~~~
+- Outputs a summary of log statistics in JSON format.
+
+### 2. Store Logs in SQLite
+~~~sh
+cat access.log | deno run --allow-read --allow-write loganalyst.ts --db=logs.db
+~~~
+- Stores logs in logs.db and outputs a summary.
+
+### 3. Analyze Subnets
+~~~sh
+cat access.log | deno run --allow-read loganalyst.ts --subnet --analysis=subnet
+~~~
+- Reports swarming subnets (e.g., /24 or /16).
+
+### 4. Block Swarming Subnets
+~~~sh
+cat access.log | deno run --allow-read --allow-write --allow-run loganalyst.ts --subnet --action=swarm.yaml
+~~~
+- Detects swarming subnets and blocks them using commands from swarm.yaml.
+
+### 5. Custom Regex and Output Format
+~~~sh
+cat access.log | deno run --allow-read loganalyst.ts --regex="GET /admin" --output=yaml
+~~~
+
+- Filters logs for /admin requests and outputs results in YAML.
+
+## CONFIGURATION
+
+### YAML Action File (e.g., swarm.yaml)
+~~~yaml
+- tag: "swarm"
+  action: "iptables -A INPUT -s {ipaddress} -j DROP"
+~~~
+- Replace \{ipaddress\} with the detected subnet.
+
+## OUTPUT FORMATS
+
+- **JSON**: Default, structured output.
+- **YAML**: Human-readable format.
+- **CSV**: Flat, spreadsheet-friendly format.
+
 `;

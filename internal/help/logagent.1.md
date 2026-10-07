@@ -1,22 +1,22 @@
-%logagent(1) user manual | version 0.0.4 104e001
+%{app_name}(1) user manual | version {version} {release_hash}
 % R. S. Doiel
-% 2026-10-07
+% {release_date}
 
 # NAME
 
-logagent
+{app_name}
 
 # SYNOPSIS
 
-logagent [OPTIONS]
+{app_name} [OPTIONS]
 
-logagent help [TOPIC]
+{app_name} help [TOPIC]
 
-logagent COMMAND [OPTIONS]
+{app_name} COMMAND [OPTIONS]
 
 # DESCRIPTION
 
-logagent is being rewritten as the Library's tool for detecting and
+{app_name} is being rewritten as the Library's tool for detecting and
 mitigating automated traffic on nginx and Apache 2 web servers. This build
 provides the standard options and the help system. The commands are planned
 and none of them is implemented yet.
@@ -52,15 +52,15 @@ respond
 analyze
 : (planned) review aggregated history over weeks and months
 
-Each command has its own manual page, named logagent-COMMAND(1), for example
-logagent-check(1). Show one with `logagent help check`.
+Each command has its own manual page, named {app_name}-COMMAND(1), for example
+{app_name}-check(1). Show one with `{app_name} help check`.
 
 # TOPICS
 
-logagent-jsonl(5)
-: the JSON Lines files logagent reads and writes (planned)
+{app_name}-jsonl(5)
+: the JSON Lines files {app_name} reads and writes (planned)
 
-logagent-tiers(7)
+{app_name}-tiers(7)
 : how defense is arranged in tiers
 
 # EXIT STATUS
@@ -75,8 +75,8 @@ logagent-tiers(7)
 # EXAMPLES
 
 ~~~
-logagent --version
-logagent help check
-logagent help --list
+{app_name} --version
+{app_name} help check
+{app_name} help --list
 ~~~
 

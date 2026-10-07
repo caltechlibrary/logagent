@@ -3,6 +3,8 @@ package logagent
 import (
 	"fmt"
 	"io"
+
+	"github.com/caltechlibrary/logagent/internal/help"
 )
 
 // Exit codes used by the logagent command. They are the subset of the
@@ -39,11 +41,20 @@ const (
 func Run(appName string, args []string, stdout, stderr io.Writer) int {
 	usage := func(msg string) int {
 		fmt.Fprintf(stderr, "%s: %s\n", appName, msg)
-		fmt.Fprintf(stderr, "usage: %s [-h|--help] [-v|--version] [-l|--license]\n", appName)
+		fmt.Fprintf(stderr, "usage: %s [-h|--help] [-v|--version] [-l|--license] | help [TOPIC|--list]\n", appName)
 		return ExitUsage
 	}
 	if len(args) == 0 {
 		return usage("nothing to do")
+	}
+	if args[0] == "help" {
+		return runHelp(appName, args[1:], stdout, usage)
+	}
+	if plannedVerbs[args[0]] {
+		if len(args) == 2 && (args[1] == "-h" || args[1] == "-help" || args[1] == "--help") {
+			return runHelp(appName, args[:1], stdout, usage)
+		}
+		return usage(fmt.Sprintf("%s is not implemented yet; see %q", args[0], appName+" help "+args[0]))
 	}
 	if len(args) > 1 {
 		return usage(fmt.Sprintf("surplus argument %q", args[1]))
@@ -61,5 +72,33 @@ func Run(appName string, args []string, stdout, stderr io.Writer) int {
 		}
 		return usage(fmt.Sprintf("unknown command %q", args[0]))
 	}
+	return ExitOK
+}
+
+// plannedVerbs are the commands that have a manual page and are not
+// implemented yet.
+var plannedVerbs = map[string]bool{"check": true, "report": true, "watch": true, "respond": true, "analyze": true}
+
+// runHelp handles `help`, `help TOPIC` and `help --list`, and a planned
+// command's --help (as `help COMMAND`).
+func runHelp(appName string, args []string, stdout io.Writer, usage func(string) int) int {
+	if len(args) > 1 {
+		return usage(fmt.Sprintf("surplus argument %q", args[1]))
+	}
+	if len(args) == 1 && args[0] == "--list" {
+		for _, p := range help.Pages() {
+			fmt.Fprintln(stdout, p.File())
+		}
+		return ExitOK
+	}
+	topic := "logagent"
+	if len(args) == 1 {
+		topic = args[0]
+	}
+	p, err := help.Lookup(topic)
+	if err != nil {
+		return usage(err.Error())
+	}
+	fmt.Fprint(stdout, FmtHelp(p.Text, appName, Version, ReleaseDate, ReleaseHash))
 	return ExitOK
 }

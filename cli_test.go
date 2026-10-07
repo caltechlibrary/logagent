@@ -75,3 +75,49 @@ func TestUsageErrorsExitTwo(t *testing.T) {
 		}
 	}
 }
+
+func TestHelpCommand(t *testing.T) {
+	code, out, errOut := run("help")
+	if code != ExitOK || !strings.Contains(out, "# NAME") || errOut != "" {
+		t.Errorf("help: exit %d, stderr %q", code, errOut)
+	}
+	code, out, _ = run("help", "check")
+	if code != ExitOK || !strings.Contains(out, "logagent-check") || !strings.Contains(out, "planned") {
+		t.Errorf("help check: exit %d", code)
+	}
+	code, out, _ = run("help", "--list")
+	if code != ExitOK {
+		t.Fatalf("help --list: exit %d", code)
+	}
+	for _, want := range []string{"logagent.1", "logagent-check.1", "logagent-jsonl.5", "logagent-tiers.7"} {
+		if !strings.Contains(out, want+"\n") {
+			t.Errorf("help --list lacks %s", want)
+		}
+	}
+}
+
+func TestHelpUsageErrors(t *testing.T) {
+	for _, args := range [][]string{
+		{"help", "nosuchtopic"},
+		{"help", "check", "surplus"},
+		{"help", "--list", "surplus"},
+	} {
+		code, out, errOut := run(args...)
+		if code != ExitUsage || out != "" || errOut == "" {
+			t.Errorf("%v: exit %d, stdout %q, stderr %q", args, code, out, errOut)
+		}
+	}
+}
+
+func TestPlannedVerbs(t *testing.T) {
+	for _, verb := range []string{"check", "report", "watch", "respond", "analyze"} {
+		code, out, errOut := run(verb, "--help")
+		if code != ExitOK || !strings.Contains(out, "logagent-"+verb) || errOut != "" {
+			t.Errorf("%s --help: exit %d", verb, code)
+		}
+		code, out, errOut = run(verb)
+		if code != ExitUsage || out != "" || !strings.Contains(errOut, "not implemented") {
+			t.Errorf("%s: exit %d, stderr %q", verb, code, errOut)
+		}
+	}
+}

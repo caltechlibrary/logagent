@@ -16,16 +16,16 @@ file per platform: Linux, macOS and Windows, each for amd64 (x86_64) and arm64
 (aarch64). Download the one for your system and unzip it. It holds:
 
 - `bin/logagent` (`bin\logagent.exe` on Windows)
-- `man/man1/logagent.1`, the manual page
+- `man/`, the manual pages (`man1`, `man5` and `man7`), one for the command and one for each planned subcommand and topic
 - `docs/`, the manual in Markdown
 - `LICENSE`, `CITATION.cff` and `codemeta.json`
 
 ### POSIX (Linux and macOS)
 
 ~~~shell
-mkdir -p "$HOME/bin" "$HOME/man/man1"
+mkdir -p "$HOME/bin" "$HOME/man"
 cp bin/logagent "$HOME/bin/"
-cp man/man1/logagent.1 "$HOME/man/man1/"
+cp -R man/. "$HOME/man/"
 export PATH="$HOME/bin:$PATH"
 export MANPATH="$HOME/man:$MANPATH"
 ~~~
@@ -70,8 +70,9 @@ cd logagent
 make
 ~~~
 
-This builds `bin/logagent`, generates the manual in `docs/` and the man page in
-`man/man1/`. You can also build with Go alone, which needs neither make nor
+This builds `bin/logagent`, regenerates the manual pages in `docs/` from the
+program's own help (`logagent help --list` names them), and renders them into
+`man/`. You can also build with Go alone, which needs neither make nor
 Pandoc:
 
 ~~~shell
@@ -105,8 +106,8 @@ make install
 make uninstall
 ~~~
 
-`make install` installs the program in `$HOME/bin` and the man page in
-`$HOME/man`. Use `make install prefix=/usr/local` to install somewhere else
+`make install` installs the program in `$HOME/bin` and the man pages in
+`$HOME/man/man1`, `man5` and `man7`. Use `make install prefix=/usr/local` to install somewhere else
 (that needs permission to write there). Make sure the `bin` directory is on your
 `PATH` and the `man` directory is on your `MANPATH`.
 

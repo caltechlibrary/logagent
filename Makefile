@@ -26,8 +26,6 @@ RELEASE_DATE = $(shell date +%Y-%m-%d)
 
 RELEASE_HASH = $(shell git log --pretty=format:%h -n 1)
 
-MAN_PAGES_1 = $(PROGRAMS:%=%.1)
-
 OS = $(shell uname)
 
 EXT =
@@ -67,15 +65,20 @@ version.go: codemeta.json
 	@mv version.go.tmp version.go
 	@echo "version.go: $(VERSION) $(RELEASE_DATE) $(RELEASE_HASH)"
 
+# docs/ holds one Markdown file per manual page, generated from the built
+# program: NAME.CHAPTER.md, for example logagent-check.1.md. The list of pages
+# comes from the program itself (logagent help --list).
 docs: bin .FORCE
 	@mkdir -p docs
-	@for FNAME in $(PROGRAMS); do ./bin/$$FNAME --help >docs/$$FNAME.1.md; done
+	@for PAGE in $$(./bin/logagent help --list); do ./bin/logagent help $$PAGE >docs/$$PAGE.md; done
 
-man: docs $(MAN_PAGES_1)
-
-$(MAN_PAGES_1): .FORCE
-	@mkdir -p man/man1
-	pandoc docs/$@.md --from markdown --to man -s >man/man1/$@
+# man renders each docs/NAME.CHAPTER.md into man/manCHAPTER/NAME.CHAPTER.
+man: docs .FORCE
+	@for FNAME in docs/*.?.md; do \
+		PAGE=$$(basename $$FNAME .md); CHAPTER=$${PAGE##*.}; \
+		mkdir -p man/man$$CHAPTER; \
+		pandoc $$FNAME --from markdown --to man -s >man/man$$CHAPTER/$$PAGE; \
+	done
 
 test: .FORCE
 	go vet ./...
@@ -105,8 +108,11 @@ install: build
 	@echo ""
 	@echo "Make sure $(PREFIX)/bin is in your PATH"
 	@echo "Installing man pages in $(PREFIX)/man"
-	@mkdir -p "$(PREFIX)/man/man1"
-	@for FNAME in $(MAN_PAGES_1); do if [ -f "./man/man1/$${FNAME}" ]; then cp -v "./man/man1/$${FNAME}" "$(PREFIX)/man/man1/$${FNAME}"; fi; done
+	@for FNAME in man/man*/*; do \
+		CHAPTER=$$(basename $$(dirname $$FNAME)); \
+		mkdir -p "$(PREFIX)/man/$$CHAPTER"; \
+		cp -v "$$FNAME" "$(PREFIX)/man/$$CHAPTER/"; \
+	done
 	@echo ""
 	@echo "Make sure $(PREFIX)/man is in your MANPATH"
 
@@ -114,7 +120,10 @@ uninstall: .FORCE
 	@echo "Removing programs in $(PREFIX)/bin"
 	@for FNAME in $(PROGRAMS); do if [ -f "$(PREFIX)/bin/$${FNAME}$(EXT)" ]; then rm -v "$(PREFIX)/bin/$${FNAME}$(EXT)"; fi; done
 	@echo "Removing man pages in $(PREFIX)/man"
-	@for FNAME in $(MAN_PAGES_1); do if [ -f "$(PREFIX)/man/man1/$${FNAME}" ]; then rm -v "$(PREFIX)/man/man1/$${FNAME}"; fi; done
+	@for FNAME in docs/*.?.md; do \
+		PAGE=$$(basename $$FNAME .md); CHAPTER=$${PAGE##*.}; \
+		if [ -f "$(PREFIX)/man/man$$CHAPTER/$$PAGE" ]; then rm -v "$(PREFIX)/man/man$$CHAPTER/$$PAGE"; fi; \
+	done
 
 # dist builds one zip per platform in PLATFORMS. It starts from an empty dist/.
 dist: build .FORCE

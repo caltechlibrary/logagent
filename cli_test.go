@@ -82,7 +82,7 @@ func TestHelpCommand(t *testing.T) {
 		t.Errorf("help: exit %d, stderr %q", code, errOut)
 	}
 	code, out, _ = run("help", "check")
-	if code != ExitOK || !strings.Contains(out, "logagent-check") || !strings.Contains(out, "planned") {
+	if code != ExitOK || !strings.Contains(out, "logagent-check") || !strings.Contains(out, "# EXIT STATUS") {
 		t.Errorf("help check: exit %d", code)
 	}
 	code, out, _ = run("help", "--list")
@@ -109,8 +109,9 @@ func TestHelpUsageErrors(t *testing.T) {
 	}
 }
 
+// check is implemented; the other commands are still planned.
 func TestPlannedVerbs(t *testing.T) {
-	for _, verb := range []string{"check", "report", "watch", "respond", "analyze"} {
+	for _, verb := range []string{"report", "watch", "respond", "analyze"} {
 		code, out, errOut := run(verb, "--help")
 		if code != ExitOK || !strings.Contains(out, "logagent-"+verb) || errOut != "" {
 			t.Errorf("%s --help: exit %d", verb, code)

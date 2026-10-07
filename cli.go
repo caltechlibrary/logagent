@@ -50,6 +50,9 @@ func Run(appName string, args []string, stdout, stderr io.Writer) int {
 	if args[0] == "help" {
 		return runHelp(appName, args[1:], stdout, usage)
 	}
+	if args[0] == "check" {
+		return runCheck(appName, args[1:], stdout, stderr)
+	}
 	if plannedVerbs[args[0]] {
 		if len(args) == 2 && (args[1] == "-h" || args[1] == "-help" || args[1] == "--help") {
 			return runHelp(appName, args[:1], stdout, usage)
@@ -77,7 +80,7 @@ func Run(appName string, args []string, stdout, stderr io.Writer) int {
 
 // plannedVerbs are the commands that have a manual page and are not
 // implemented yet.
-var plannedVerbs = map[string]bool{"check": true, "report": true, "watch": true, "respond": true, "analyze": true}
+var plannedVerbs = map[string]bool{"report": true, "watch": true, "respond": true, "analyze": true}
 
 // runHelp handles `help`, `help TOPIC` and `help --list`, and a planned
 // command's --help (as `help COMMAND`).

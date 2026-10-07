@@ -78,7 +78,7 @@ retention
 
 fields
 : per-field overrides of the field table, a map from a field name to `required`,
-  `optional` or `not_applicable`.
+  `optional` or `not_applicable`. The names are listed in logagent-fields(5).
 
 # EXAMPLE
 
@@ -110,5 +110,5 @@ fields:
 
 # SEE ALSO
 
-logagent(1), logagent-check(1), logagent-jsonl(5)
+logagent(1), logagent-check(1), logagent-fields(5), logagent-jsonl(5)
 

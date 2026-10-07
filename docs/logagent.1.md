@@ -60,6 +60,9 @@ logagent-check(1). Show one with `logagent help check`.
 logagent-config(5)
 : the per-host configuration file
 
+logagent-fields(5)
+: the log fields the tiers need and how each server logs them
+
 logagent-jsonl(5)
 : the JSON Lines files logagent reads and writes (planned)
 

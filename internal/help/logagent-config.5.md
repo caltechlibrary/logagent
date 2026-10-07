@@ -78,7 +78,7 @@ retention
 
 fields
 : per-field overrides of the field table, a map from a field name to `required`,
-  `optional` or `not_applicable`.
+  `optional` or `not_applicable`. The names are listed in {app_name}-fields(5).
 
 # EXAMPLE
 
@@ -110,5 +110,5 @@ fields:
 
 # SEE ALSO
 
-{app_name}(1), {app_name}-check(1), {app_name}-jsonl(5)
+{app_name}(1), {app_name}-check(1), {app_name}-fields(5), {app_name}-jsonl(5)
 

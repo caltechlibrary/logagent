@@ -35,6 +35,10 @@ var (
 	// configuration file.
 	LogagentConfigHelpText = help.MustText("logagent-config.5")
 
+	// LogagentFieldsHelpText is the logagent-fields(5) manual page, the log
+	// fields the tiers need.
+	LogagentFieldsHelpText = help.MustText("logagent-fields.5")
+
 	// LogagentJSONLHelpText is the logagent-jsonl(5) manual page, the JSON Lines
 	// schema (placeholder).
 	LogagentJSONLHelpText = help.MustText("logagent-jsonl.5")

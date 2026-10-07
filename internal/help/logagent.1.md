@@ -60,6 +60,9 @@ Each command has its own manual page, named {app_name}-COMMAND(1), for example
 {app_name}-config(5)
 : the per-host configuration file
 
+{app_name}-fields(5)
+: the log fields the tiers need and how each server logs them
+
 {app_name}-jsonl(5)
 : the JSON Lines files {app_name} reads and writes (planned)
 

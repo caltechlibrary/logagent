@@ -5,14 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/caltechlibrary/logagent/internal/check"
 	"github.com/caltechlibrary/logagent/internal/config"
+	"github.com/caltechlibrary/logagent/internal/fields"
 	"github.com/caltechlibrary/logagent/internal/help"
 	"github.com/caltechlibrary/logagent/internal/nginxconf"
+	"github.com/caltechlibrary/logagent/internal/sample"
 )
 
 // commandRunner runs the command that prints the web server's configuration.
@@ -25,14 +29,23 @@ var commandRunner = func(name string, args ...string) ([]byte, error) {
 type checkOptions struct {
 	help, json   bool
 	config, dump string
+	// sample is how many lines from the end of each log to count; 0 means none.
+	sample int
 }
+
+// defaultSample is how many lines of each log the check counts unless told otherwise.
+const defaultSample = 10000
+
+// newCheckOptions returns the options with their defaults.
+func newCheckOptions() checkOptions { return checkOptions{sample: defaultSample} }
 
 // parseCheckArgs reads the options of the check command: long options with one
 // or two dashes, `--name=value`, short options, and clusters of short options
 // such as -jh, where a short option that takes a value ends the cluster.
 func parseCheckArgs(args []string) (checkOptions, error) {
-	var o checkOptions
-	long := map[string]string{"help": "h", "json": "j", "config": "c", "dump": "d"}
+	o := newCheckOptions()
+	long := map[string]string{"help": "h", "json": "j", "config": "c", "dump": "d", "sample": "s"}
+	var badValue error
 	set := func(short string, value string) {
 		switch short {
 		case "h":
@@ -43,9 +56,16 @@ func parseCheckArgs(args []string) (checkOptions, error) {
 			o.config = value
 		case "d":
 			o.dump = value
+		case "s":
+			n, err := strconv.Atoi(value)
+			if err != nil || n < 0 {
+				badValue = usageError(fmt.Sprintf("--sample needs a whole number of lines, 0 or more (got %q)", value))
+				return
+			}
+			o.sample = n
 		}
 	}
-	takesValue := func(short string) bool { return short == "c" || short == "d" }
+	takesValue := func(short string) bool { return short == "c" || short == "d" || short == "s" }
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		if !strings.HasPrefix(a, "-") || a == "-" {
@@ -92,7 +112,7 @@ func parseCheckArgs(args []string) (checkOptions, error) {
 			}
 		}
 	}
-	return o, nil
+	return o, badValue
 }
 
 // runCheck is `logagent check`. It reads the web server configuration the host
@@ -117,7 +137,7 @@ func runCheck(appName string, args []string, stdout, stderr io.Writer) int {
 		} else {
 			fmt.Fprintf(stderr, "%s check: %s\n", appName, err)
 			if class == "usage" {
-				fmt.Fprintf(stderr, "usage: %s check [-h|--help] [-j|--json] [-c|--config PATH] [-d|--dump FILE]\n", appName)
+				fmt.Fprintf(stderr, "usage: %s check [-h|--help] [-j|--json] [-c|--config PATH] [-d|--dump FILE] [-s|--sample LINES]\n", appName)
 			}
 		}
 		return code
@@ -171,7 +191,31 @@ func buildReport(opt checkOptions) (*check.Report, error) {
 	if err != nil {
 		return nil, err
 	}
-	return check.Run(check.Input{Config: cfg, Dump: dump})
+	in := check.Input{Config: cfg, Dump: dump}
+	if opt.sample > 0 {
+		in.Sampler = logSampler(opt.sample)
+	}
+	return check.Run(in)
+}
+
+// logSampler returns the function the check calls to count fields in a log. A
+// log that is not on this machine, as when a dump was copied from a host, is
+// skipped without comment; any other failure is reported as a note.
+func logSampler(lines int) func(path, format string) check.Sample {
+	return func(path, format string) check.Sample {
+		p, err := sample.Compile(format)
+		if err != nil {
+			return check.Sample{Err: err.Error()}
+		}
+		s, err := sample.File(path, lines, p, fields.Default())
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+			return check.Sample{}
+		case err != nil:
+			return check.Sample{Err: err.Error()}
+		}
+		return s
+	}
 }
 
 // readDump returns the web server's configuration text: from --dump, from the

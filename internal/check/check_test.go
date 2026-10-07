@@ -514,3 +514,119 @@ func TestAProblemInheritedByManyServersIsOneFindingNamingThem(t *testing.T) {
 		t.Errorf("findings = %+v", got)
 	}
 }
+
+func TestASampleThatCouldNotBeTakenIsANoteAndJudgesNothing(t *testing.T) {
+	in := Input{
+		Config:  cfg("cloudflare", nil),
+		Dump:    dump(t, host(full, realIP)),
+		Samples: map[string]Sample{logPath: {Err: "permission denied"}},
+	}
+	r, err := Run(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := find(r, "sample-unavailable")
+	if len(got) != 1 || got[0].Severity != Note || got[0].Log != logPath || !strings.Contains(got[0].Message, "permission denied") {
+		t.Errorf("findings = %+v", r.Findings)
+	}
+	if r.ExitCode() != 0 || len(r.Findings) != 1 {
+		t.Errorf("exit %d, findings %+v", r.ExitCode(), r.Findings)
+	}
+}
+
+// If most lines do not match the format, the log was written with another one
+// (a rotated file from before a change, or the wrong path), and the counts mean nothing.
+func TestASampleMostlyUnparsedIsAWarningAndJudgesNothing(t *testing.T) {
+	in := Input{
+		Config:  cfg("cloudflare", nil),
+		Dump:    dump(t, host(full, realIP)),
+		Samples: map[string]Sample{logPath: {Lines: 100, Skipped: 900, Present: map[string]int{"bot_score": 0}}},
+	}
+	r, _ := Run(in)
+	got := find(r, "sample-mismatch")
+	if len(got) != 1 || got[0].Severity != Warn || !strings.Contains(got[0].Message, "900") {
+		t.Fatalf("findings = %+v", r.Findings)
+	}
+	if len(find(r, "field-empty")) != 0 {
+		t.Errorf("a mismatched sample judged a field: %+v", r.Findings)
+	}
+	// A few unparsed lines are normal and say nothing.
+	in.Samples = map[string]Sample{logPath: {Lines: 990, Skipped: 10, Present: map[string]int{"bot_score": 0}}}
+	r, _ = Run(in)
+	if len(find(r, "sample-mismatch")) != 0 || len(find(r, "field-empty")) != 1 {
+		t.Errorf("findings = %+v", r.Findings)
+	}
+}
+
+// user and referer are in the format for compatibility, and are a dash on most sites.
+func TestFieldsNothingReadsAreNeverJudgedEmpty(t *testing.T) {
+	in := Input{
+		Config:  cfg("none", nil),
+		Dump:    dump(t, host(full, "")),
+		Samples: map[string]Sample{logPath: {Lines: 100, Present: map[string]int{"user": 0, "referer": 0, "ua": 100}}},
+	}
+	r, _ := Run(in)
+	if len(find(r, "field-empty")) != 0 {
+		t.Errorf("findings = %+v", r.Findings)
+	}
+}
+
+// With a Sampler, Run asks for each log's counts itself, given the log path and the
+// format text it found, concatenated the way nginx does.
+func TestRunAsksTheSamplerForEachLog(t *testing.T) {
+	var gotPath, gotFormat string
+	in := Input{
+		Config: cfg("none", nil),
+		Dump:   dump(t, host(full, "")),
+		Sampler: func(path, format string) Sample {
+			gotPath, gotFormat = path, format
+			return Sample{Lines: 10, Present: map[string]int{"rt": 0}}
+		},
+	}
+	r, _ := Run(in)
+	if gotPath != logPath || !strings.Contains(gotFormat, `"$request" $status`) || strings.Contains(gotFormat, "'") {
+		t.Errorf("sampler got %q, %q", gotPath, gotFormat)
+	}
+	if len(find(r, "field-empty")) != 1 {
+		t.Errorf("findings = %+v", r.Findings)
+	}
+	// An entry in Samples wins over the Sampler.
+	in.Samples = map[string]Sample{logPath: {Lines: 10, Present: map[string]int{"rt": 10}}}
+	r, _ = Run(in)
+	if len(find(r, "field-empty")) != 0 {
+		t.Errorf("Samples did not take precedence: %+v", r.Findings)
+	}
+	// The built-in combined format is handed over too.
+	in = Input{Config: cfg("none", nil), Dump: dump(t, host("", "")), Sampler: func(path, format string) Sample {
+		gotFormat = format
+		return Sample{}
+	}}
+	Run(in)
+	if !strings.HasPrefix(gotFormat, "$remote_addr - $remote_user") {
+		t.Errorf("combined format given as %q", gotFormat)
+	}
+}
+
+func TestAJSONEscapedFormatIsNotSampled(t *testing.T) {
+	format := "log_format full escape=json '$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\" rt=$request_time';"
+	asked := false
+	in := Input{Config: cfg("none", nil), Dump: dump(t, host(format, "")), Sampler: func(path, f string) Sample { asked = true; return Sample{} }}
+	r, err := Run(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if asked {
+		t.Error("the sampler was asked to read an escape=json log")
+	}
+	if got := find(r, "sample-unavailable"); len(got) != 1 || !strings.Contains(got[0].Message, "escape=json") {
+		t.Errorf("findings = %+v", r.Findings)
+	}
+	// An escape=default argument is skipped in the text the sampler gets.
+	var gotFormat string
+	in.Dump = dump(t, host("log_format full escape=default '$remote_addr \"$request\"';", ""))
+	in.Sampler = func(path, f string) Sample { gotFormat = f; return Sample{} }
+	Run(in)
+	if gotFormat != `$remote_addr "$request"` {
+		t.Errorf("format = %q", gotFormat)
+	}
+}

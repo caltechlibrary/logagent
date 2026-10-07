@@ -52,6 +52,10 @@ type Place struct {
 type Sample struct {
 	// Lines is how many log lines were counted.
 	Lines int `json:"lines"`
+	// Skipped is how many lines did not match the log format.
+	Skipped int `json:"skipped"`
+	// Err says why a sample could not be taken; the counts are then not used.
+	Err string `json:"error"`
 	// Present maps a field name to the number of lines in which it held a
 	// value other than a dash. A field with no entry is not judged.
 	Present map[string]int `json:"present"`
@@ -67,6 +71,10 @@ type Input struct {
 	Table *fields.Table
 	// Samples holds optional counts, keyed by log path.
 	Samples map[string]Sample
+	// Sampler, if set, is asked for the counts of each log that has no entry in
+	// Samples. It is given the log's path and its format text, the quoted
+	// pieces joined with nothing between them as nginx does.
+	Sampler func(path, format string) Sample
 }
 
 // FieldStatus is how one field fares in one log. Status is ok, missing or
@@ -247,9 +255,17 @@ func Run(in Input) (*Report, error) {
 		if len(g.al.Args) > 1 {
 			lr.Format = g.al.Args[1]
 		}
-		text, known := builtinCombined, true
+		text, raw, known := builtinCombined, builtinCombined, true
+		sampleErr := ""
 		if d, ok := formats[lr.Format]; ok {
-			text = strings.Join(d.Args[1:], " ")
+			pieces := d.Args[1:]
+			if len(pieces) > 0 && strings.HasPrefix(pieces[0], "escape=") {
+				if pieces[0] == "escape=json" {
+					sampleErr = "the log_format uses escape=json, which the sampler does not read"
+				}
+				pieces = pieces[1:]
+			}
+			text, raw = strings.Join(pieces, " "), strings.Join(pieces, "")
 			if order[d] > order[g.al] {
 				add(Finding{Code: "format-defined-after-use", Severity: Gap, At: placeOf(d), Log: lr.Path,
 					Message: fmt.Sprintf("log_format %q at %s is defined after the access_log that uses it at %s; nginx -t rejects this as an unknown log format",
@@ -264,6 +280,24 @@ func Run(in Input) (*Report, error) {
 		}
 		if known {
 			sample, haveSample := in.Samples[lr.Path]
+			if !haveSample && in.Sampler != nil && sampleErr == "" {
+				sample, haveSample = in.Sampler(lr.Path, raw), true
+			}
+			if sampleErr != "" {
+				sample, haveSample = Sample{Err: sampleErr}, true
+			}
+			switch {
+			case haveSample && sample.Err != "":
+				add(Finding{Code: "sample-unavailable", Severity: Note, Log: lr.Path, At: lr.At,
+					Message: fmt.Sprintf("could not count fields in %s: %s", lr.Path, sample.Err)})
+				haveSample = false
+			case haveSample && sample.Skipped > sample.Lines:
+				add(Finding{Code: "sample-mismatch", Severity: Warn, Log: lr.Path, At: lr.At,
+					Message: fmt.Sprintf("%d of %d sampled lines in %s do not match log format %s, so the counts are not used; the log may have been written with another format",
+						sample.Skipped, sample.Skipped+sample.Lines, lr.Path, lr.Format),
+					Suggestion: "Check that the log is the one this access_log writes and that the format has not changed since the lines were written."})
+				haveSample = false
+			}
 			haveSample = haveSample && sample.Lines > 0
 			anyMissing := false
 			for _, q := range reqs {
@@ -280,7 +314,7 @@ func Run(in Input) (*Report, error) {
 					add(Finding{Code: "field-missing", Severity: sev, Field: f.Name, Log: lr.Path, At: lr.At,
 						Message:    fmt.Sprintf("%s is not in log format %s: %s", f.Name, lr.Format, f.Description),
 						Suggestion: f.IfMissing})
-				case haveSample && sample.Present != nil && hasKey(sample.Present, f.Name) && sample.Present[f.Name] == 0:
+				case haveSample && !compatibilityOnly(f) && sample.Present != nil && hasKey(sample.Present, f.Name) && sample.Present[f.Name] == 0:
 					st.Status = "empty"
 					add(Finding{Code: "field-empty", Severity: sev, Field: f.Name, Log: lr.Path, At: lr.At,
 						Message: fmt.Sprintf("%s is in log format %s but none of %d sampled lines carried a value", f.Name, lr.Format, sample.Lines),
@@ -415,6 +449,17 @@ func serverLabel(srv *nginxconf.Directive) string {
 		return name + ":" + port
 	}
 	return name
+}
+
+// compatibilityOnly reports whether nothing but the stock format needs a field,
+// which sites often leave as a dash, so an empty count says nothing.
+func compatibilityOnly(f fields.Field) bool {
+	for _, n := range f.NeededBy {
+		if n != "compatibility" {
+			return false
+		}
+	}
+	return true
 }
 
 func isOff(al *nginxconf.Directive) bool { return len(al.Args) == 1 && al.Args[0] == "off" }

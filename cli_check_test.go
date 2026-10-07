@@ -278,7 +278,7 @@ func TestCheckHelpAndItsExitStatusSection(t *testing.T) {
 			t.Errorf("EXIT STATUS lacks code %s", code)
 		}
 	}
-	for _, opt := range []string{"--config", "--dump", "--json", "-j", "--help"} {
+	for _, opt := range []string{"--config", "--dump", "--json", "-j", "--help", "--sample", "-s"} {
 		if !strings.Contains(p.Text, opt) {
 			t.Errorf("page does not describe %s", opt)
 		}
@@ -314,5 +314,94 @@ func TestCheckApacheIsUnsupportedEvenWithNoDumpSource(t *testing.T) {
 	code, _, errOut := run("check", "--config", cfg)
 	if code != 1 || !strings.Contains(errOut, "unsupported") {
 		t.Errorf("exit %d, stderr %q", code, errOut)
+	}
+}
+
+// sampleHost writes a log in the field table's format and a configuration and
+// dump for a host behind Cloudflare that is otherwise correct. Each element of
+// botScores is the bot_score of one log line, "-" for a missing header.
+func sampleHost(t *testing.T, botScores []string) (cfgPath, logFile string) {
+	t.Helper()
+	dir := t.TempDir()
+	logFile = filepath.Join(dir, "access.log")
+	var b strings.Builder
+	for _, s := range botScores {
+		b.WriteString(`203.0.113.9 - - [07/Oct/2026:12:00:01 -0700] "GET / HTTP/1.1" 200 5 "-" "Mozilla/5.0" rt=0.1 urt="0.1" ` +
+			`cf_ray="8abc-LAX" cf_country="US" peer=172.71.1.1 lang="en" ch_ua="-" ch_plat="-" bot_score="` + s + `" ja3="-" ja4="-"` + "\n")
+	}
+	if err := os.WriteFile(logFile, []byte(b.String()), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dumpText := "http {\n" + fields.Default().NginxLogFormat("full") + "\naccess_log " + logFile + " full;\n" +
+		"set_real_ip_from 173.245.48.0/20;\nreal_ip_header CF-Connecting-IP;\nserver { server_name a.example; }\n}\n"
+	dumpPath := filepath.Join(dir, "nginx-T.txt")
+	os.WriteFile(dumpPath, []byte(dumpText), 0o600)
+	cfgPath = filepath.Join(dir, "logagent.yaml")
+	os.WriteFile(cfgPath, []byte("version: 1\nserver: nginx\nconfig:\n  dump: "+dumpPath+"\nlogs:\n  - path: "+logFile+"\nproxy:\n  behind: cloudflare\n"), 0o600)
+	return cfgPath, logFile
+}
+
+func TestCheckSamplesTheLogByDefault(t *testing.T) {
+	cfg, _ := sampleHost(t, []string{"-", "-", "-"})
+	code, out, errOut := run("check", "--config", cfg)
+	if code != ExitOK || errOut != "" {
+		t.Fatalf("exit %d, stderr %q\n%s", code, errOut, out)
+	}
+	for _, want := range []string{"[note] field-empty bot_score", "[note] field-empty ja3", "[note] field-empty ja4"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("stdout lacks %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "203.0.113.9") || strings.Contains(out, "Mozilla") {
+		t.Error("the report holds log content")
+	}
+}
+
+func TestCheckSampleOption(t *testing.T) {
+	// Old lines carry a bot score; the last three do not.
+	scores := []string{"40", "40", "40", "40", "40", "40", "40", "-", "-", "-"}
+	cfg, _ := sampleHost(t, scores)
+	has := func(args ...string) bool {
+		t.Helper()
+		_, out, _ := run(append([]string{"check", "--config", cfg}, args...)...)
+		return strings.Contains(out, "field-empty bot_score")
+	}
+	if has() {
+		t.Error("the default sample covers the whole short log; bot_score is present in 7 lines")
+	}
+	if !has("--sample", "3") || !has("-s", "3") || !has("--sample=3") || !has("-s3") {
+		t.Error("a sample of the last three lines should find bot_score empty")
+	}
+	if has("--sample", "0") || has("-s", "0") {
+		t.Error("--sample 0 should turn sampling off")
+	}
+	if _, out, _ := run("check", "--config", cfg, "--sample", "0"); strings.Contains(out, "sample") {
+		t.Errorf("--sample 0 still mentions sampling:\n%s", out)
+	}
+	for _, bad := range [][]string{{"--sample", "x"}, {"--sample", "-1"}, {"--sample"}, {"-s", "1.5"}} {
+		if code, _, _ := run(append([]string{"check", "--config", cfg}, bad...)...); code != ExitUsage {
+			t.Errorf("%v: exit %d, want 2", bad, code)
+		}
+	}
+}
+
+func TestCheckSkipsASampleWhenTheLogIsNotOnThisMachine(t *testing.T) {
+	cfg, logFile := sampleHost(t, []string{"-"})
+	os.Remove(logFile)
+	code, out, errOut := run("check", "--config", cfg)
+	if code != ExitOK || errOut != "" || strings.Contains(out, "sample") {
+		t.Errorf("exit %d, stderr %q\n%s", code, errOut, out)
+	}
+}
+
+func TestCheckSaysWhenTheLogCannotBeRead(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("file permissions are not enforced here")
+	}
+	cfg, logFile := sampleHost(t, []string{"-"})
+	os.Chmod(logFile, 0)
+	code, out, _ := run("check", "--config", cfg)
+	if code != ExitOK || !strings.Contains(out, "[note] sample-unavailable") {
+		t.Errorf("exit %d\n%s", code, out)
 	}
 }

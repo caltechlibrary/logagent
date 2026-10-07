@@ -97,3 +97,14 @@ func TestTheInterfaceCheckUsesTheHostConfiguration(t *testing.T) {
 		t.Errorf("no configuration: error = %v", err)
 	}
 }
+
+func TestTheInterfaceCheckSamplesTheLogToo(t *testing.T) {
+	got := stubTerminal(t, true, nil)
+	run()
+	cfg, _ := sampleHost(t, []string{"-", "-"})
+	t.Setenv(config.EnvVar, cfg)
+	text, err := (*got)[0].Check()
+	if err != nil || !strings.Contains(text, "field-empty bot_score") {
+		t.Errorf("%v\n%s", err, text)
+	}
+}

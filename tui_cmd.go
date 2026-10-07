@@ -30,7 +30,7 @@ func runInterface(appName string, stderr io.Writer) int {
 		AppName:      appName,
 		ColorEnabled: os.Getenv("NO_COLOR") == "",
 		Check: func() (string, error) {
-			report, err := buildReport(checkOptions{})
+			report, err := buildReport(newCheckOptions())
 			if err != nil {
 				return "", err
 			}

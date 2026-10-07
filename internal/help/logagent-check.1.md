@@ -35,6 +35,15 @@ the first of these:
 Only nginx is supported. An Apache configuration is reported as unsupported, and
 the exit status is 1, until Apache has been surveyed and checked.
 
+# READING THE LOG
+
+A format can name a header that the proxy never sends: the field is in the log
+and every line has a dash. The configuration cannot show that, so {app_name} check
+also reads the end of each access log, using the log format it found, and counts
+how many lines held a value for each field. It keeps only the counts. No address,
+query string or user agent is stored or printed, so the report can be pasted into
+an issue. Lines that do not match the format are counted as skipped.
+
 # OPTIONS
 
 -h, --help
@@ -52,6 +61,11 @@ the exit status is 1, until Apache has been surveyed and checked.
 : read the web server's configuration from this saved `nginx -T` text, ignoring
   `config.dump` and `config.command`
 
+-s, --sample LINES
+: count fields in the last LINES lines of each access log (default 10000). `0`
+  turns the counts off. A log that is not on this machine, as when a dump was
+  copied from a host, is skipped without comment
+
 Short options may be clustered, as in `-jh`. A short option that takes a value
 ends the cluster. `--name=value` is accepted for options that take a value.
 
@@ -66,8 +80,18 @@ field-missing
   is a note.
 
 field-empty
-: the field is in the format, but a log sample found no value in any line. It
-  needs counts from a sample of the log.
+: the field is in the format, but no sampled line held a value for it. Look at
+  what sends the header (the proxy, for the Cloudflare fields), not at this
+  server. Fields that nothing but the stock format uses, such as the user name and
+  the referer, are never reported this way.
+
+sample-unavailable
+: the log could not be read or its format could not be read (a note).
+
+sample-mismatch
+: most sampled lines do not match the log format, so the counts are not used. The
+  log may have been written with another format, or be the wrong file (a
+  warning).
 
 format-defined-after-use
 : the `log_format` comes after the `access_log` that names it, which `nginx -t`

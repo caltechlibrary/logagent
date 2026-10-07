@@ -1,0 +1,49 @@
+# Example logagent configuration. Copy it to /etc/logagent/logagent.yaml (or
+# name another file with --config or $LOGAGENT_CONFIG) and edit it for the host.
+# The real file holds the host's addresses and is not committed.
+#
+# Unknown keys are an error, so a misspelled key is caught and not ignored.
+# Always put address ranges in quotes.
+# See logagent-config(5), `logagent help config`.
+
+version: 1                          # the schema version; must be 1
+
+host: caltechauthors-v13            # a label shown in reports
+server: nginx                       # nginx or apache
+
+# Where the web server's configuration comes from. Give a saved `nginx -T`
+# dump, or a command to run. If neither is given for nginx, `nginx -T` is run.
+config:
+  dump: /var/lib/logagent/nginx-T.txt
+  # command: nginx -T
+
+# The access logs to read.
+logs:
+  - path: /var/log/nginx/access.log
+
+# What sits in front of this server.
+proxy:
+  behind: cloudflare                # none or cloudflare
+  real_ip_header: CF-Connecting-IP  # the default when behind is cloudflare
+  # trusted_ranges:                 # override the module's snapshot of the
+  #   - "173.245.48.0/20"           # proxy's published ranges
+
+# Addresses that belong to us. They are counted, never stored in detail, and
+# never targeted. There is no built-in default: list the Library's own
+# networks, and for a cloud service only the Library's own addresses, never the
+# provider's whole published range.
+internal_ranges:
+  - "131.215.0.0/16"                # Caltech campus
+  # - "192.0.2.0/24"                # a remote site
+
+# Retention, in days.
+retention:
+  logrotate: /etc/logrotate.d/nginx # governs layer 1, the web server's own log
+  layer1_min_days: 14               # the least the tools need
+  layer1_max_days: 90               # the most policy allows
+  layer2_days: 28                   # reduced events
+  layer3_days: 730                  # daily aggregates
+
+# Per-field overrides of the field table: required, optional or not_applicable.
+fields:
+  bot_score: optional

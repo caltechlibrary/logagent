@@ -15,6 +15,7 @@ var helpVars = map[string]string{
 	"logagent-report.1":  LogagentReportHelpText,
 	"logagent-respond.1": LogagentRespondHelpText,
 	"logagent-watch.1":   LogagentWatchHelpText,
+	"logagent-config.5":  LogagentConfigHelpText,
 	"logagent-jsonl.5":   LogagentJSONLHelpText,
 	"logagent-tiers.7":   LogagentTiersHelpText,
 }

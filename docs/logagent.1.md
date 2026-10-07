@@ -57,6 +57,9 @@ logagent-check(1). Show one with `logagent help check`.
 
 # TOPICS
 
+logagent-config(5)
+: the per-host configuration file
+
 logagent-jsonl(5)
 : the JSON Lines files logagent reads and writes (planned)
 
@@ -71,6 +74,12 @@ logagent-tiers(7)
 2
 : usage error: an unknown option, command or help topic, a missing or surplus
   argument, or a command that is not implemented yet
+
+66
+: a configuration file was not found
+
+78
+: the configuration file exists and is wrong
 
 # EXAMPLES
 

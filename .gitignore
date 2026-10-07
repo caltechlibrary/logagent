@@ -1,12 +1,24 @@
+# editors and backups
 *~
 *.swp
 *.bak
-*.yaml
-*.json
-*.log
+
+# build output, anchored so nothing deeper is hidden
+/bin/
+/dist/
+/man/
+
+# Go test and profile output
+*.test
+*.out
+coverage.*
+
+# local data
 *.db
-bin
-dist
-man
-sandbox
-llm_prompts*.html
+*.log
+/sandbox/
+
+# A real per-host configuration holds that host's addresses and is never
+# committed. Only the examples are.
+*.yaml
+!/examples/*.yaml

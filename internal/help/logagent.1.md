@@ -57,6 +57,9 @@ Each command has its own manual page, named {app_name}-COMMAND(1), for example
 
 # TOPICS
 
+{app_name}-config(5)
+: the per-host configuration file
+
 {app_name}-jsonl(5)
 : the JSON Lines files {app_name} reads and writes (planned)
 
@@ -71,6 +74,12 @@ Each command has its own manual page, named {app_name}-COMMAND(1), for example
 2
 : usage error: an unknown option, command or help topic, a missing or surplus
   argument, or a command that is not implemented yet
+
+66
+: a configuration file was not found
+
+78
+: the configuration file exists and is wrong
 
 # EXAMPLES
 

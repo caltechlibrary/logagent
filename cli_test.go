@@ -89,7 +89,7 @@ func TestHelpCommand(t *testing.T) {
 	if code != ExitOK {
 		t.Fatalf("help --list: exit %d", code)
 	}
-	for _, want := range []string{"logagent.1", "logagent-check.1", "logagent-jsonl.5", "logagent-tiers.7"} {
+	for _, want := range []string{"logagent.1", "logagent-check.1", "logagent-config.5", "logagent-jsonl.5", "logagent-tiers.7"} {
 		if !strings.Contains(out, want+"\n") {
 			t.Errorf("help --list lacks %s", want)
 		}

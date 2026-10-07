@@ -31,6 +31,10 @@ var (
 	// LogagentAnalyzeHelpText is the logagent-analyze(1) manual page (planned command).
 	LogagentAnalyzeHelpText = help.MustText("logagent-analyze.1")
 
+	// LogagentConfigHelpText is the logagent-config(5) manual page, the per-host
+	// configuration file.
+	LogagentConfigHelpText = help.MustText("logagent-config.5")
+
 	// LogagentJSONLHelpText is the logagent-jsonl(5) manual page, the JSON Lines
 	// schema (placeholder).
 	LogagentJSONLHelpText = help.MustText("logagent-jsonl.5")

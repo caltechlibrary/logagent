@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/caltechlibrary/logagent/internal/config"
 	"github.com/caltechlibrary/logagent/internal/fields"
 	"github.com/caltechlibrary/logagent/internal/help"
+	"github.com/caltechlibrary/logagent/internal/logrotate"
 	"github.com/caltechlibrary/logagent/internal/nginxconf"
 	"github.com/caltechlibrary/logagent/internal/proxyranges"
 	"github.com/caltechlibrary/logagent/internal/sample"
@@ -216,7 +218,46 @@ func buildReport(opt checkOptions) (*check.Report, error) {
 	if opt.sample > 0 {
 		in.Sampler = logSampler(opt.sample)
 	}
+	if cfg.Retention.Logrotate != "" {
+		in.Logrotate, in.LogrotateErr = readLogrotate(cfg.Retention.Logrotate)
+	}
 	return check.Run(in)
+}
+
+// readLogrotate reads the logrotate file the host names and, when it is in a
+// logrotate.d directory, the logrotate.conf beside that directory, whose global
+// options are defaults for it. A file that is not on this machine is skipped
+// without comment, as when a dump was copied from a host; any other problem is
+// returned for the report to say so.
+func readLogrotate(file string) ([]*logrotate.File, error) {
+	text, err := os.ReadFile(file)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	main, err := logrotate.Parse(file, string(text))
+	if err != nil {
+		return nil, err
+	}
+	files := []*logrotate.File{main}
+	if filepath.Base(filepath.Dir(file)) == "logrotate.d" {
+		defaults := filepath.Join(filepath.Dir(filepath.Dir(file)), "logrotate.conf")
+		text, err := os.ReadFile(defaults)
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+		case err != nil:
+			return nil, err
+		default:
+			d, err := logrotate.Parse(defaults, string(text))
+			if err != nil {
+				return nil, err
+			}
+			files = append(files, d)
+		}
+	}
+	return files, nil
 }
 
 // logSampler returns the function the check calls to count fields in a log. A

@@ -44,6 +44,16 @@ how many lines held a value for each field. It keeps only the counts. No address
 query string or user agent is stored or printed, so the report can be pasted into
 an issue. Lines that do not match the format are counted as skipped.
 
+# LOG RETENTION
+
+When the host configuration names a logrotate file in `retention.logrotate`,
+logagent check reads the block that governs each configured log and counts how
+many days of it logrotate keeps. It compares that with `retention.layer1_min_days`
+and `retention.layer1_max_days` (logagent-config(5)). If the file is in a
+`logrotate.d` directory, the `logrotate.conf` beside that directory is read as
+well, for the global options a block leaves unset. `include` lines are not
+followed. A file that is not on this machine is skipped without comment.
+
 # OPTIONS
 
 -h, --help
@@ -136,6 +146,30 @@ real-ip-trusts-other-ranges
 : the trust list holds a range that is not inside the proxy's, such as an
   internal load balancer or a range wider than the proxy's own (a note). Any
   address in it can set the address that is logged.
+
+logrotate-retention-short
+: logrotate keeps fewer days of a log than the tiers need,
+  `retention.layer1_min_days` (14 by default). The span counted is the rotate
+  count times the interval, so `daily` with `rotate 14` is 14 days. A gap.
+
+logrotate-retention-long
+: logrotate keeps more days than policy allows, `retention.layer1_max_days` (90
+  by default), counting the live log at its fullest, so `daily` with `rotate 14`
+  is up to 15 days. `rotate -1` with no `maxage` keeps logs without limit. A gap.
+
+logrotate-indeterminate
+: the days cannot be counted: the block rotates by `size`, or no interval is set
+  (a warning).
+
+logrotate-maxsize
+: the block also has `maxsize`, so a busy day can rotate the log early and keep
+  fewer days than the count says (a note).
+
+logrotate-no-match
+: no block in the logrotate file governs a configured log (a warning).
+
+logrotate-unreadable
+: the logrotate file could not be read or has a syntax error (a warning).
 
 ranges-snapshot-old
 : the built-in list of the proxy's ranges is older than

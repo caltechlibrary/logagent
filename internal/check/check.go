@@ -12,12 +12,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/netip"
 	"strings"
 	"time"
 
 	"github.com/caltechlibrary/logagent/internal/config"
 	"github.com/caltechlibrary/logagent/internal/fields"
+	"github.com/caltechlibrary/logagent/internal/logrotate"
 	"github.com/caltechlibrary/logagent/internal/nginxconf"
 	"github.com/caltechlibrary/logagent/internal/proxyranges"
 )
@@ -85,6 +87,11 @@ type Input struct {
 	RangesErr error
 	// Now is the time to judge ages by; zero means the real clock.
 	Now time.Time
+	// Logrotate holds the parsed logrotate files: the first governs the logs,
+	// the others supply default options only. Empty means no retention check.
+	Logrotate []*logrotate.File
+	// LogrotateErr is why the logrotate file could not be used, if it was tried.
+	LogrotateErr error
 }
 
 // FieldStatus is how one field fares in one log. Status is ok, missing or
@@ -374,6 +381,10 @@ func Run(in Input) (*Report, error) {
 		}
 	}
 
+	if len(in.Logrotate) > 0 || in.LogrotateErr != nil {
+		checkLogrotate(c, in, add)
+	}
+
 	have := map[string]bool{}
 	for _, l := range r.Logs {
 		have[l.Path] = true
@@ -386,6 +397,123 @@ func Run(in Input) (*Report, error) {
 		}
 	}
 	return r, nil
+}
+
+// checkLogrotate compares how long logrotate keeps each configured log with
+// the floor the tiers need and the ceiling policy allows (DR-0002).
+func checkLogrotate(c *config.Config, in Input, add func(Finding)) {
+	if in.LogrotateErr != nil {
+		add(Finding{Code: "logrotate-unreadable", Severity: Warn,
+			Message:    fmt.Sprintf("the logrotate file named by retention.logrotate could not be used, so retention was not checked: %v", in.LogrotateErr),
+			Suggestion: "Check retention.logrotate in the host configuration, and that the file is readable."})
+		return
+	}
+	main := in.Logrotate[0]
+	defaults := []logrotate.Options{main.Global}
+	for _, f := range in.Logrotate[1:] {
+		defaults = append(defaults, f.Global)
+	}
+	floor, ceiling := c.Retention.Layer1MinDays, c.Retention.Layer1MaxDays
+	if floor < 1 {
+		floor = 14
+	}
+	if ceiling < 1 {
+		ceiling = 90
+	}
+	type group struct {
+		s    *logrotate.Stanza
+		logs []string
+	}
+	var groups []*group
+	byStanza := map[*logrotate.Stanza]*group{}
+	for _, l := range c.Logs {
+		s, ok := main.For(l.Path)
+		if !ok {
+			add(Finding{Code: "logrotate-no-match", Severity: Warn, Log: l.Path,
+				Message:    fmt.Sprintf("no block in %s governs %s, so its retention is unknown", main.Path, l.Path),
+				Suggestion: "Check that retention.logrotate names the file that rotates this log."})
+			continue
+		}
+		g := byStanza[s]
+		if g == nil {
+			g = &group{s: s}
+			byStanza[s] = g
+			groups = append(groups, g)
+		}
+		g.logs = append(g.logs, l.Path)
+	}
+	for _, g := range groups {
+		ret := g.s.Retention(defaults...)
+		at := Place{File: g.s.File, Line: g.s.Line}
+		logs := strings.Join(g.logs, ", ")
+		first := g.logs[0]
+		switch {
+		case ret.Indeterminate != "":
+			add(Finding{Code: "logrotate-indeterminate", Severity: Warn, At: at, Log: first,
+				Message:    fmt.Sprintf("cannot count how many days of %s logrotate keeps: %s", logs, ret.Indeterminate),
+				Suggestion: "Rotate by time (daily, weekly) with a rotate count, so retention can be checked against policy."})
+		case ret.Unlimited:
+			add(Finding{Code: "logrotate-retention-long", Severity: Gap, At: at, Log: first,
+				Message:    fmt.Sprintf("logrotate keeps rotated copies of %s with no limit (rotate -1 and no maxage), above the %d-day ceiling", logs, ceiling),
+				Suggestion: fmt.Sprintf("Set rotate to a count that stays within %d days, or add maxage %d.", ceiling, ceiling-1)})
+		case ret.LowDays < float64(floor):
+			need := int(math.Ceil(float64(floor) / intervalLow(ret.Interval)))
+			add(Finding{Code: "logrotate-retention-short", Severity: Gap, At: at, Log: first,
+				Message: fmt.Sprintf("logrotate keeps %s days of %s, below the %d days the tiers need (%s rotate %d)",
+					days(ret.LowDays), logs, floor, ret.Interval, ret.Rotate),
+				Suggestion: fmt.Sprintf("Set rotate %d in the block at %s%s.", need, at, maxAgeHint(ret, floor))})
+		case ret.HighDays > float64(ceiling):
+			keep := int(math.Floor(float64(ceiling)/intervalHigh(ret.Interval))) - 1
+			if keep < 0 {
+				keep = 0
+			}
+			add(Finding{Code: "logrotate-retention-long", Severity: Gap, At: at, Log: first,
+				Message: fmt.Sprintf("logrotate keeps up to %s days of %s, above the %d-day ceiling (%s rotate %d)",
+					days(ret.HighDays), logs, ceiling, ret.Interval, ret.Rotate),
+				Suggestion: fmt.Sprintf("Set rotate %d (or add maxage %d) in the block at %s.", keep, ceiling-1, at)})
+		}
+		if ret.MaxSize != "" && ret.Indeterminate == "" {
+			add(Finding{Code: "logrotate-maxsize", Severity: Note, At: at, Log: first,
+				Message:    fmt.Sprintf("the block rotates %s early when it reaches %s, so on a busy day it keeps fewer days than the count says", logs, ret.MaxSize),
+				Suggestion: "Check that a day of this log is smaller than maxsize, or that fewer days are enough."})
+		}
+	}
+}
+
+func intervalLow(interval string) float64 {
+	switch interval {
+	case "hourly":
+		return 1.0 / 24
+	case "weekly":
+		return 7
+	case "monthly":
+		return 28
+	case "yearly":
+		return 365
+	}
+	return 1
+}
+
+func intervalHigh(interval string) float64 {
+	if interval == "monthly" {
+		return 31
+	}
+	return intervalLow(interval)
+}
+
+func maxAgeHint(r logrotate.Retention, floor int) string {
+	if r.MaxAgeDays > 0 && float64(r.MaxAgeDays) < float64(floor) {
+		return fmt.Sprintf(" (maxage %d also removes copies sooner than that; raise or remove it)", r.MaxAgeDays)
+	}
+	return ""
+}
+
+// days formats a number of days without a needless decimal.
+func days(d float64) string {
+	if d == math.Trunc(d) {
+		return fmt.Sprintf("%d", int(d))
+	}
+	return fmt.Sprintf("%.1f", d)
 }
 
 // suggestFormat builds the text for a log that lacks fields: the format and

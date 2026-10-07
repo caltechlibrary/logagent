@@ -72,7 +72,7 @@ internal_ranges
 
 retention
 : the retention policy, in whole days. `logrotate` is the path of the logrotate
-  file that governs layer 1, the web server's own log. `layer1_min_days`
+  file that governs layer 1, which logagent-check(1) reads to count the days kept, the web server's own log. `layer1_min_days`
   (default 14) is the least the tools need and `layer1_max_days` (default 90) is
   the most policy allows. `layer2_days` (default 28) covers reduced events and
   `layer3_days` (default 730) covers daily aggregates. The minimum may not be

@@ -45,6 +45,9 @@ func Run(appName string, args []string, stdout, stderr io.Writer) int {
 		return ExitUsage
 	}
 	if len(args) == 0 {
+		if isTerminal() {
+			return runInterface(appName, stderr)
+		}
 		return usage("nothing to do")
 	}
 	if args[0] == "help" {

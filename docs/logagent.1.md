@@ -72,6 +72,15 @@ logagent-privacy(7)
 logagent-tiers(7)
 : how defense is arranged in tiers
 
+# INTERACTIVE USE
+
+Run with no arguments at a terminal, logagent opens a menu of its commands.
+`check` runs the check and shows the report; the others show a note that they
+are not built yet and where to read about them. Arrow keys or `j` and `k` move,
+Enter chooses, `q` or Esc goes back or quits. Colour is only a highlight on the
+cursor row, which is also marked with `>`, and is off when `NO_COLOR` is set.
+With no terminal, no arguments is a usage error.
+
 # EXIT STATUS
 
 0

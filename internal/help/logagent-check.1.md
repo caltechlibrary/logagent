@@ -66,6 +66,13 @@ an issue. Lines that do not match the format are counted as skipped.
   turns the counts off. A log that is not on this machine, as when a dump was
   copied from a host, is skipped without comment
 
+-r, --refresh-ranges
+: behind a proxy, fetch the proxy's published list of ranges and compare the host
+  with that, instead of the list built into {app_name}. Nothing is written; the
+  live list is used for this run only. If it cannot be fetched a note says so and
+  the built-in list is used. Without this option {app_name} never touches the
+  network
+
 Short options may be clustered, as in `-jh`. A short option that takes a value
 ends the cluster. `--name=value` is accepted for options that take a value.
 
@@ -117,7 +124,26 @@ log-not-found
 real-ip-missing, real-ip-header-mismatch, real-ip-no-trusted-proxies, real-ip-trust-too-wide
 : behind a proxy, the visitor's address is not recovered, is read from the wrong
   header, is ignored because no proxy is trusted, or can be forged because every
-  address is trusted.
+  address is trusted. The suggestion lists the `set_real_ip_from` lines to use.
+
+real-ip-ranges-missing
+: the trust list does not cover every range the proxy publishes (a warning).
+  Requests that arrive through a missing range are logged with the proxy's
+  address. The ranges compared with are `proxy.trusted_ranges` if the host
+  configuration lists them, otherwise the list built into {app_name}.
+
+real-ip-trusts-other-ranges
+: the trust list holds a range that is not inside the proxy's, such as an
+  internal load balancer or a range wider than the proxy's own (a note). Any
+  address in it can set the address that is logged.
+
+ranges-snapshot-old
+: the built-in list of the proxy's ranges is older than
+  `proxy.ranges_max_age_days` days, 90 by default (a warning). Use
+  `--refresh-ranges`, or list the ranges in `proxy.trusted_ranges`.
+
+ranges-refresh-failed
+: `--refresh-ranges` could not fetch the live list (a note).
 
 # EXAMPLES
 

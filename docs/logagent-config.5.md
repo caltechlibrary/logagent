@@ -59,7 +59,9 @@ proxy
   `cloudflare`. `real_ip_header` names the header that carries the client
   address and defaults to `CF-Connecting-IP` when `behind` is `cloudflare`.
   `trusted_ranges` is an optional list of CIDR ranges that overrides the
-  program's snapshot of the proxy's published ranges.
+  program's snapshot of the proxy's published ranges. `ranges_max_age_days`
+  (default 90, at least 1) is how old that snapshot may be before
+  logagent-check(1) warns about it.
 
 internal_ranges
 : a list of CIDR ranges that belong to the institution: a campus network, remote

@@ -1,21 +1,25 @@
 package logagent
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/caltechlibrary/logagent/internal/check"
 	"github.com/caltechlibrary/logagent/internal/config"
 	"github.com/caltechlibrary/logagent/internal/fields"
 	"github.com/caltechlibrary/logagent/internal/help"
 	"github.com/caltechlibrary/logagent/internal/nginxconf"
+	"github.com/caltechlibrary/logagent/internal/proxyranges"
 	"github.com/caltechlibrary/logagent/internal/sample"
 )
 
@@ -27,11 +31,21 @@ var commandRunner = func(name string, args ...string) ([]byte, error) {
 
 // checkOptions are the parsed options of `logagent check`.
 type checkOptions struct {
-	help, json   bool
-	config, dump string
+	help, json bool
+	// refreshRanges fetches the proxy's published ranges instead of using the
+	// list built into the program.
+	refreshRanges bool
+	config, dump  string
 	// sample is how many lines from the end of each log to count; 0 means none.
 	sample int
 }
+
+// rangeSources are the pages the proxy's ranges are fetched from; a variable so
+// tests can serve their own.
+var rangeSources = proxyranges.CloudflareSources
+
+// refreshTimeout bounds fetching the proxy's published ranges.
+const refreshTimeout = 15 * time.Second
 
 // defaultSample is how many lines of each log the check counts unless told otherwise.
 const defaultSample = 10000
@@ -44,7 +58,7 @@ func newCheckOptions() checkOptions { return checkOptions{sample: defaultSample}
 // such as -jh, where a short option that takes a value ends the cluster.
 func parseCheckArgs(args []string) (checkOptions, error) {
 	o := newCheckOptions()
-	long := map[string]string{"help": "h", "json": "j", "config": "c", "dump": "d", "sample": "s"}
+	long := map[string]string{"help": "h", "json": "j", "config": "c", "dump": "d", "sample": "s", "refresh-ranges": "r"}
 	var badValue error
 	set := func(short string, value string) {
 		switch short {
@@ -52,6 +66,8 @@ func parseCheckArgs(args []string) (checkOptions, error) {
 			o.help = true
 		case "j":
 			o.json = true
+		case "r":
+			o.refreshRanges = true
 		case "c":
 			o.config = value
 		case "d":
@@ -94,7 +110,7 @@ func parseCheckArgs(args []string) (checkOptions, error) {
 		for j := 0; j < len(cluster); j++ {
 			s := string(cluster[j])
 			switch {
-			case s == "h" || s == "j":
+			case s == "h" || s == "j" || s == "r":
 				set(s, "")
 			case takesValue(s):
 				v := cluster[j+1:]
@@ -137,7 +153,7 @@ func runCheck(appName string, args []string, stdout, stderr io.Writer) int {
 		} else {
 			fmt.Fprintf(stderr, "%s check: %s\n", appName, err)
 			if class == "usage" {
-				fmt.Fprintf(stderr, "usage: %s check [-h|--help] [-j|--json] [-c|--config PATH] [-d|--dump FILE] [-s|--sample LINES]\n", appName)
+				fmt.Fprintf(stderr, "usage: %s check [-h|--help] [-j|--json] [-c|--config PATH] [-d|--dump FILE] [-s|--sample LINES] [-r|--refresh-ranges]\n", appName)
 			}
 		}
 		return code
@@ -192,6 +208,11 @@ func buildReport(opt checkOptions) (*check.Report, error) {
 		return nil, err
 	}
 	in := check.Input{Config: cfg, Dump: dump}
+	if opt.refreshRanges && cfg.Proxy.Behind != "none" {
+		ctx, cancel := context.WithTimeout(context.Background(), refreshTimeout)
+		defer cancel()
+		in.Ranges, in.RangesErr = proxyranges.Fetch(ctx, http.DefaultClient, rangeSources, time.Now())
+	}
 	if opt.sample > 0 {
 		in.Sampler = logSampler(opt.sample)
 	}

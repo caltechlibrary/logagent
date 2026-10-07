@@ -278,7 +278,7 @@ func TestCheckHelpAndItsExitStatusSection(t *testing.T) {
 			t.Errorf("EXIT STATUS lacks code %s", code)
 		}
 	}
-	for _, opt := range []string{"--config", "--dump", "--json", "-j", "--help", "--sample", "-s"} {
+	for _, opt := range []string{"--config", "--dump", "--json", "-j", "--help", "--sample", "-s", "--refresh-ranges", "-r"} {
 		if !strings.Contains(p.Text, opt) {
 			t.Errorf("page does not describe %s", opt)
 		}

@@ -76,6 +76,9 @@ type Proxy struct {
 	Behind        string   `yaml:"behind"`
 	RealIPHeader  string   `yaml:"real_ip_header"`
 	TrustedRanges []string `yaml:"trusted_ranges"`
+	// RangesMaxAgeDays is how old the built-in list of the proxy's ranges may
+	// be before check warns about it.
+	RangesMaxAgeDays int `yaml:"ranges_max_age_days"`
 }
 
 // Retention holds the retention policy, in days, for the three layers of data
@@ -166,7 +169,7 @@ func Load(path string) (*Config, error) {
 		return nil, err
 	}
 	c := &Config{
-		Proxy: Proxy{Behind: "none"},
+		Proxy: Proxy{Behind: "none", RangesMaxAgeDays: 90},
 		Retention: Retention{
 			Layer1MinDays: 14,
 			Layer1MaxDays: 90,
@@ -215,6 +218,9 @@ func (c *Config) validate() error {
 		}
 	default:
 		return fmt.Errorf("proxy.behind: must be none or cloudflare (got %q)", c.Proxy.Behind)
+	}
+	if c.Proxy.RangesMaxAgeDays < 1 {
+		return fmt.Errorf("proxy.ranges_max_age_days: must be at least 1 day (got %d)", c.Proxy.RangesMaxAgeDays)
 	}
 	var err error
 	if c.internal, err = parseRanges("internal_ranges", c.InternalCIDRs); err != nil {

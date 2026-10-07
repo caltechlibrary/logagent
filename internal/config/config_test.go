@@ -209,3 +209,23 @@ func TestLocateFailures(t *testing.T) {
 		t.Errorf("nothing found: %v", err)
 	}
 }
+
+func TestRangesMaxAgeDays(t *testing.T) {
+	c, err := Load(write(t, minimal))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Proxy.RangesMaxAgeDays != 90 {
+		t.Errorf("default proxy.ranges_max_age_days = %d, want 90", c.Proxy.RangesMaxAgeDays)
+	}
+	c, err = Load(write(t, minimal+"proxy:\n  behind: cloudflare\n  ranges_max_age_days: 30\n"))
+	if err != nil || c.Proxy.RangesMaxAgeDays != 30 {
+		t.Errorf("explicit value: %v, %d", err, c.Proxy.RangesMaxAgeDays)
+	}
+	for _, v := range []string{"0", "-5"} {
+		_, err := Load(write(t, minimal+"proxy:\n  ranges_max_age_days: "+v+"\n"))
+		if !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), "proxy.ranges_max_age_days") {
+			t.Errorf("ranges_max_age_days %s: error = %v", v, err)
+		}
+	}
+}

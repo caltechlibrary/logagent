@@ -12,11 +12,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/netip"
 	"strings"
+	"time"
 
 	"github.com/caltechlibrary/logagent/internal/config"
 	"github.com/caltechlibrary/logagent/internal/fields"
 	"github.com/caltechlibrary/logagent/internal/nginxconf"
+	"github.com/caltechlibrary/logagent/internal/proxyranges"
 )
 
 var (
@@ -75,6 +78,13 @@ type Input struct {
 	// Samples. It is given the log's path and its format text, the quoted
 	// pieces joined with nothing between them as nginx does.
 	Sampler func(path, format string) Sample
+	// Ranges is the proxy's list of published ranges; nil means the list built
+	// into the program.
+	Ranges *proxyranges.Snapshot
+	// RangesErr is why a fresh list could not be fetched, if that was tried.
+	RangesErr error
+	// Now is the time to judge ages by; zero means the real clock.
+	Now time.Time
 }
 
 // FieldStatus is how one field fares in one log. Status is ok, missing or
@@ -340,7 +350,28 @@ func Run(in Input) (*Report, error) {
 	}
 
 	if c.Proxy.Behind != "none" {
-		r.checkRealIP(c, servers, add)
+		ranges := in.Ranges
+		if ranges == nil {
+			ranges = proxyranges.Cloudflare()
+		}
+		now := in.Now
+		if now.IsZero() {
+			now = time.Now()
+		}
+		if in.RangesErr != nil {
+			add(Finding{Code: "ranges-refresh-failed", Severity: Note,
+				Message: fmt.Sprintf("could not fetch the live list of the proxy's ranges: %v; the list built into logagent, retrieved %s, was used",
+					in.RangesErr, ranges.Retrieved.Format("2006-01-02"))})
+		}
+		r.checkRealIP(c, servers, ranges, add)
+		if len(configuredRanges(c)) == 0 {
+			if limit := maxAge(c); ranges.Stale(now, limit) {
+				add(Finding{Code: "ranges-snapshot-old", Severity: Warn,
+					Message: fmt.Sprintf("the list of %s ranges is %d days old (retrieved %s from %s); it is warned about after %d days",
+						ranges.Provider, ranges.AgeDays(now), ranges.Retrieved.Format("2006-01-02"), ranges.Source, limit),
+					Suggestion: "Run check with --refresh-ranges to compare with the live list, or set proxy.trusted_ranges in the host configuration to your own list. A newer release of logagent carries a newer list."})
+			}
+		}
 	}
 
 	have := map[string]bool{}
@@ -367,7 +398,8 @@ func suggestFormat(tab *fields.Table, lr LogReport) string {
 
 // checkRealIP checks the real-IP setup of every server behind a proxy, merging
 // findings that point at the same place into one that names every server.
-func (r *Report) checkRealIP(c *config.Config, servers []*nginxconf.Directive, add func(Finding)) {
+func (r *Report) checkRealIP(c *config.Config, servers []*nginxconf.Directive, snapshot *proxyranges.Snapshot, add func(Finding)) {
+	expected, expectedName := expectedRanges(c, snapshot)
 	type key struct {
 		code, message string
 	}
@@ -404,23 +436,44 @@ func (r *Report) checkRealIP(c *config.Config, servers []*nginxconf.Directive, a
 		if len(header) == 0 {
 			put(Finding{Code: "real-ip-missing", Severity: Gap, At: placeOf(srv),
 				Message:    "real_ip_header is not set, so every request is logged with the address of the proxy and not the visitor",
-				Suggestion: realIPSuggestion(c)}, label)
+				Suggestion: realIPSuggestion(c, expected)}, label)
 		} else if want != "" && !strings.EqualFold(header[0].Args[0], want) {
 			put(Finding{Code: "real-ip-header-mismatch", Severity: Gap, At: placeOf(header[0]),
 				Message:    fmt.Sprintf("real_ip_header is %s but the proxy sends the visitor's address in %s", header[0].Args[0], want),
-				Suggestion: realIPSuggestion(c)}, label)
+				Suggestion: realIPSuggestion(c, expected)}, label)
 		}
 		if len(header) > 0 && len(trust) == 0 {
 			put(Finding{Code: "real-ip-no-trusted-proxies", Severity: Gap, At: placeOf(header[0]),
 				Message:    "real_ip_header is set but no set_real_ip_from names a proxy to trust, so nginx ignores the header",
-				Suggestion: realIPSuggestion(c)}, label)
+				Suggestion: realIPSuggestion(c, expected)}, label)
 		}
+		tooWide := false
+		var trusted []netip.Prefix
 		for _, t := range trust {
 			if t.Args[0] == "0.0.0.0/0" || t.Args[0] == "::/0" {
+				tooWide = true
 				put(Finding{Code: "real-ip-trust-too-wide", Severity: Gap, At: placeOf(t),
 					Message:    fmt.Sprintf("set_real_ip_from %s trusts every address, so any visitor can forge the address that is logged", t.Args[0]),
-					Suggestion: "Trust only the proxy's published ranges. " + realIPSuggestion(c)}, label)
+					Suggestion: "Trust only the proxy's published ranges. " + realIPSuggestion(c, expected)}, label)
 			}
+			if p, ok := parseTrusted(t.Args[0]); ok {
+				trusted = append(trusted, p)
+			}
+		}
+		if len(trusted) == 0 || tooWide {
+			continue
+		}
+		if missing := expected.Missing(trusted); len(missing) > 0 {
+			put(Finding{Code: "real-ip-ranges-missing", Severity: Warn, At: placeOf(trust[0]),
+				Message: fmt.Sprintf("set_real_ip_from does not cover %d of the %d %s ranges (%s); requests that reach this server through them are logged with the proxy's address",
+					len(missing), len(expected.Prefixes), expectedName, joinPrefixes(missing)),
+				Suggestion: "Add these next to the existing set_real_ip_from lines:\n" + setRealIPLines(missing)}, label)
+		}
+		if extra := expected.Extra(trusted); len(extra) > 0 {
+			put(Finding{Code: "real-ip-trusts-other-ranges", Severity: Note, At: placeOf(trust[0]),
+				Message: fmt.Sprintf("set_real_ip_from also trusts %s, which are not inside the %s ranges; any address in them can set the address that is logged",
+					joinPrefixes(extra), expectedName),
+				Suggestion: "Trust only the proxy's published ranges unless these are proxies of yours, such as an internal load balancer."}, label)
 		}
 	}
 	for _, k := range order {
@@ -430,17 +483,73 @@ func (r *Report) checkRealIP(c *config.Config, servers []*nginxconf.Directive, a
 	}
 }
 
-// realIPSuggestion is the text for a missing or wrong real-IP setup.
-func realIPSuggestion(c *config.Config) string {
-	var b strings.Builder
-	b.WriteString("In the http block, before the server blocks, in a file nginx.conf includes, trust the proxy and read the visitor's address from its header:\n")
-	if ranges := c.TrustedRanges(); len(ranges) > 0 {
-		for _, p := range ranges {
-			fmt.Fprintf(&b, "set_real_ip_from %s;\n", p)
-		}
-	} else {
-		b.WriteString("set_real_ip_from <each range the proxy publishes>;\n")
+// expectedRanges returns the ranges a server behind the proxy should trust and
+// the name to call them: the host's own list if it gave one, otherwise the
+// snapshot.
+func expectedRanges(c *config.Config, snapshot *proxyranges.Snapshot) (*proxyranges.Snapshot, string) {
+	if own := configuredRanges(c); len(own) > 0 {
+		return &proxyranges.Snapshot{Provider: "configured", Source: "proxy.trusted_ranges", Prefixes: own}, "configured"
 	}
+	return snapshot, "Cloudflare"
+}
+
+// configuredRanges returns the ranges the host's configuration lists as the
+// proxy's. The configuration loader has already checked them.
+func configuredRanges(c *config.Config) []netip.Prefix {
+	var out []netip.Prefix
+	for _, s := range c.Proxy.TrustedRanges {
+		if p, ok := parseTrusted(s); ok {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func maxAge(c *config.Config) int {
+	if c.Proxy.RangesMaxAgeDays < 1 {
+		return 90
+	}
+	return c.Proxy.RangesMaxAgeDays
+}
+
+// parseTrusted reads a set_real_ip_from argument: a range or a single address.
+func parseTrusted(arg string) (netip.Prefix, bool) {
+	if p, err := netip.ParsePrefix(arg); err == nil {
+		return p.Masked(), true
+	}
+	if a, err := netip.ParseAddr(arg); err == nil {
+		return netip.PrefixFrom(a, a.BitLen()), true
+	}
+	return netip.Prefix{}, false
+}
+
+func joinPrefixes(ps []netip.Prefix) string {
+	parts := make([]string, len(ps))
+	for i, p := range ps {
+		parts[i] = p.String()
+	}
+	return strings.Join(parts, ", ")
+}
+
+func setRealIPLines(ps []netip.Prefix) string {
+	var b strings.Builder
+	for _, p := range ps {
+		fmt.Fprintf(&b, "set_real_ip_from %s;\n", p)
+	}
+	return b.String()
+}
+
+// realIPSuggestion is the text for a missing or wrong real-IP setup, listing
+// the ranges to trust.
+func realIPSuggestion(c *config.Config, expected *proxyranges.Snapshot) string {
+	var b strings.Builder
+	b.WriteString("In the http block, before the server blocks, in a file nginx.conf includes, trust the proxy and read the visitor's address from its header")
+	if expected.Provider == "configured" {
+		b.WriteString(" (ranges from proxy.trusted_ranges):\n")
+	} else {
+		fmt.Fprintf(&b, " (ranges as published at %s, retrieved %s):\n", expected.Source, expected.Retrieved.Format("2006-01-02"))
+	}
+	b.WriteString(setRealIPLines(expected.Prefixes))
 	h := c.Proxy.RealIPHeader
 	if h == "" {
 		h = "CF-Connecting-IP"

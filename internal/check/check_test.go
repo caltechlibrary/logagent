@@ -6,13 +6,35 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/caltechlibrary/logagent/internal/config"
 	"github.com/caltechlibrary/logagent/internal/fields"
 	"github.com/caltechlibrary/logagent/internal/nginxconf"
+	"github.com/caltechlibrary/logagent/internal/proxyranges"
 )
 
 const logPath = "/var/log/nginx/access.log"
+
+// testNow is the date every test runs on, and testRanges the proxy's published
+// ranges as the tests know them: the two that realIP trusts, retrieved six days before.
+var testNow = time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+
+const testRangesJSON = `{"version":1,"provider":"cloudflare","retrieved":"2026-10-01","source":"https://www.cloudflare.com/ips/",
+ "ipv4":["173.245.48.0/20"],"ipv6":["2400:cb00::/32"]}`
+
+func testSnap() *proxyranges.Snapshot {
+	s, err := proxyranges.Parse([]byte(testRangesJSON))
+	if err != nil {
+		panic(err)
+	}
+	return s
+}
+
+func testRanges(t *testing.T) *proxyranges.Snapshot {
+	t.Helper()
+	return testSnap()
+}
 
 // cfg is a configuration for an nginx host with one log.
 func cfg(behind string, overrides map[string]string, logs ...string) *config.Config {
@@ -42,7 +64,7 @@ func dump(t *testing.T, text string) *nginxconf.Dump {
 // run checks text against c and fails the test on an error.
 func run(t *testing.T, c *config.Config, text string) *Report {
 	t.Helper()
-	r, err := Run(Input{Config: c, Dump: dump(t, text)})
+	r, err := Run(Input{Ranges: testRanges(t), Now: testNow, Config: c, Dump: dump(t, text)})
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -291,8 +313,8 @@ func TestRealIPBehindCloudflare(t *testing.T) {
 		{"complete", realIP, ""},
 		{"none configured", "", "real-ip-missing"},
 		{"header but nothing trusted", "real_ip_header CF-Connecting-IP;", "real-ip-no-trusted-proxies"},
-		{"trusted but no header", "set_real_ip_from 173.245.48.0/20;", "real-ip-missing"},
-		{"wrong header", "set_real_ip_from 173.245.48.0/20;\nreal_ip_header X-Forwarded-For;", "real-ip-header-mismatch"},
+		{"trusted but no header", "set_real_ip_from 173.245.48.0/20;\nset_real_ip_from 2400:cb00::/32;", "real-ip-missing"},
+		{"wrong header", "set_real_ip_from 173.245.48.0/20;\nset_real_ip_from 2400:cb00::/32;\nreal_ip_header X-Forwarded-For;", "real-ip-header-mismatch"},
 		{"trusts everyone", "set_real_ip_from 0.0.0.0/0;\nreal_ip_header CF-Connecting-IP;", "real-ip-trust-too-wide"},
 		{"trusts everyone over IPv6", "set_real_ip_from ::/0;\nreal_ip_header CF-Connecting-IP;", "real-ip-trust-too-wide"},
 	}
@@ -352,6 +374,7 @@ func TestRealIPSetAtHttpLevelCoversEveryServer(t *testing.T) {
 
 func TestASampleSeparatesAnEmptyFieldFromAMissingOne(t *testing.T) {
 	in := Input{
+		Ranges: testRanges(t), Now: testNow,
 		Config: cfg("cloudflare", nil),
 		Dump:   dump(t, host(full, realIP)),
 		Samples: map[string]Sample{logPath: {Lines: 1000, Present: map[string]int{
@@ -394,6 +417,7 @@ func TestASampleSeparatesAnEmptyFieldFromAMissingOne(t *testing.T) {
 
 func TestARequiredMissingFieldIsNotAlsoReportedEmpty(t *testing.T) {
 	in := Input{
+		Ranges: testRanges(t), Now: testNow,
 		Config:  cfg("none", nil),
 		Dump:    dump(t, host("", "")),
 		Samples: map[string]Sample{logPath: {Lines: 100, Present: map[string]int{}}},
@@ -407,21 +431,21 @@ func TestARequiredMissingFieldIsNotAlsoReportedEmpty(t *testing.T) {
 func TestApacheIsUnsupported(t *testing.T) {
 	c := cfg("none", nil)
 	c.Server = "apache"
-	_, err := Run(Input{Config: c, Dump: dump(t, host(full, ""))})
+	_, err := Run(Input{Ranges: testRanges(t), Now: testNow, Config: c, Dump: dump(t, host(full, ""))})
 	if !errors.Is(err, ErrUnsupported) {
 		t.Errorf("error = %v, want ErrUnsupported", err)
 	}
 }
 
 func TestADumpWithNoServersIsAnError(t *testing.T) {
-	_, err := Run(Input{Config: cfg("none", nil), Dump: dump(t, "events {}\nhttp { }\n")})
+	_, err := Run(Input{Ranges: testRanges(t), Now: testNow, Config: cfg("none", nil), Dump: dump(t, "events {}\nhttp { }\n")})
 	if !errors.Is(err, ErrNoServers) {
 		t.Errorf("error = %v, want ErrNoServers", err)
 	}
 }
 
 func TestAnUnresolvableIncludeIsReportedAsSuch(t *testing.T) {
-	_, err := Run(Input{Config: cfg("none", nil), Dump: dump(t, "http { include missing.conf; server { } }\n")})
+	_, err := Run(Input{Ranges: testRanges(t), Now: testNow, Config: cfg("none", nil), Dump: dump(t, "http { include missing.conf; server { } }\n")})
 	if !errors.Is(err, nginxconf.ErrInclude) {
 		t.Errorf("error = %v, want nginxconf.ErrInclude", err)
 	}
@@ -486,6 +510,7 @@ func TestReportMarshalsToJSONWithStableKeys(t *testing.T) {
 // an issue (DR-0003, DR-0002).
 func TestReportHoldsNoLogContent(t *testing.T) {
 	in := Input{
+		Ranges: testRanges(t), Now: testNow,
 		Config:  cfg("none", nil),
 		Dump:    dump(t, host("", "")),
 		Samples: map[string]Sample{logPath: {Lines: 3, Present: map[string]int{"ua": 3}}},
@@ -498,11 +523,11 @@ func TestReportHoldsNoLogContent(t *testing.T) {
 }
 
 func TestDefaultTableIsUsedWhenNoneIsGiven(t *testing.T) {
-	a, err := Run(Input{Config: cfg("none", nil), Dump: dump(t, host("", ""))})
+	a, err := Run(Input{Ranges: testRanges(t), Now: testNow, Config: cfg("none", nil), Dump: dump(t, host("", ""))})
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, _ := Run(Input{Config: cfg("none", nil), Dump: dump(t, host("", "")), Table: fields.Default()})
+	b, _ := Run(Input{Ranges: testRanges(t), Now: testNow, Config: cfg("none", nil), Dump: dump(t, host("", "")), Table: fields.Default()})
 	if !reflect.DeepEqual(a, b) {
 		t.Error("nil Table differs from fields.Default()")
 	}
@@ -520,6 +545,7 @@ func TestAProblemInheritedByManyServersIsOneFindingNamingThem(t *testing.T) {
 
 func TestASampleThatCouldNotBeTakenIsANoteAndJudgesNothing(t *testing.T) {
 	in := Input{
+		Ranges: testRanges(t), Now: testNow,
 		Config:  cfg("cloudflare", nil),
 		Dump:    dump(t, host(full, realIP)),
 		Samples: map[string]Sample{logPath: {Err: "permission denied"}},
@@ -541,6 +567,7 @@ func TestASampleThatCouldNotBeTakenIsANoteAndJudgesNothing(t *testing.T) {
 // (a rotated file from before a change, or the wrong path), and the counts mean nothing.
 func TestASampleMostlyUnparsedIsAWarningAndJudgesNothing(t *testing.T) {
 	in := Input{
+		Ranges: testRanges(t), Now: testNow,
 		Config:  cfg("cloudflare", nil),
 		Dump:    dump(t, host(full, realIP)),
 		Samples: map[string]Sample{logPath: {Lines: 100, Skipped: 900, Present: map[string]int{"bot_score": 0}}},
@@ -564,6 +591,7 @@ func TestASampleMostlyUnparsedIsAWarningAndJudgesNothing(t *testing.T) {
 // user and referer are in the format for compatibility, and are a dash on most sites.
 func TestFieldsNothingReadsAreNeverJudgedEmpty(t *testing.T) {
 	in := Input{
+		Ranges: testRanges(t), Now: testNow,
 		Config:  cfg("none", nil),
 		Dump:    dump(t, host(full, "")),
 		Samples: map[string]Sample{logPath: {Lines: 100, Present: map[string]int{"user": 0, "referer": 0, "ua": 100}}},
@@ -579,6 +607,7 @@ func TestFieldsNothingReadsAreNeverJudgedEmpty(t *testing.T) {
 func TestRunAsksTheSamplerForEachLog(t *testing.T) {
 	var gotPath, gotFormat string
 	in := Input{
+		Ranges: testRanges(t), Now: testNow,
 		Config: cfg("none", nil),
 		Dump:   dump(t, host(full, "")),
 		Sampler: func(path, format string) Sample {
@@ -600,7 +629,7 @@ func TestRunAsksTheSamplerForEachLog(t *testing.T) {
 		t.Errorf("Samples did not take precedence: %+v", r.Findings)
 	}
 	// The built-in combined format is handed over too.
-	in = Input{Config: cfg("none", nil), Dump: dump(t, host("", "")), Sampler: func(path, format string) Sample {
+	in = Input{Ranges: testRanges(t), Now: testNow, Config: cfg("none", nil), Dump: dump(t, host("", "")), Sampler: func(path, format string) Sample {
 		gotFormat = format
 		return Sample{}
 	}}
@@ -613,7 +642,7 @@ func TestRunAsksTheSamplerForEachLog(t *testing.T) {
 func TestAJSONEscapedFormatIsNotSampled(t *testing.T) {
 	format := "log_format full escape=json '$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\" rt=$request_time';"
 	asked := false
-	in := Input{Config: cfg("none", nil), Dump: dump(t, host(format, "")), Sampler: func(path, f string) Sample { asked = true; return Sample{} }}
+	in := Input{Ranges: testRanges(t), Now: testNow, Config: cfg("none", nil), Dump: dump(t, host(format, "")), Sampler: func(path, f string) Sample { asked = true; return Sample{} }}
 	r, err := Run(in)
 	if err != nil {
 		t.Fatal(err)

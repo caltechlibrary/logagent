@@ -1,48 +1,125 @@
-Installation for development of **Log Agent**
-===========================================
+Installation for **logagent**
+=============================
 
-**Log Agent** is an experimental, proof of concept, log processor.  Log Agent scans each line of a log file for an explicit string, finds the IP address and in the log line and applies an designated action.
+**logagent** is a work in progress: a Go tool for detecting and mitigating
+automated traffic on nginx and Apache 2 web servers. At this stage the
+`logagent` command provides only `--help`, `--version` and `--license`. See
+[README.md](README.md) for where it is going.
 
-It provides a `logagent` command line program.
+It provides one command line program, `logagent`.
 
+Installing a release
+--------------------
+
+Each release on <https://github.com/caltechlibrary/logagent/releases> has a zip
+file per platform: Linux, macOS and Windows, each for amd64 (x86_64) and arm64
+(aarch64). Download the one for your system and unzip it. It holds:
+
+- `bin/logagent` (`bin\logagent.exe` on Windows)
+- `man/man1/logagent.1`, the manual page
+- `docs/`, the manual in Markdown
+- `LICENSE`, `CITATION.cff` and `codemeta.json`
+
+### POSIX (Linux and macOS)
+
+~~~shell
+mkdir -p "$HOME/bin" "$HOME/man/man1"
+cp bin/logagent "$HOME/bin/"
+cp man/man1/logagent.1 "$HOME/man/man1/"
+export PATH="$HOME/bin:$PATH"
+export MANPATH="$HOME/man:$MANPATH"
+~~~
+
+Add the two `export` lines to your shell's startup file to keep them.
+
+### Windows
+
+Copy `bin\logagent.exe` to a folder on your `PATH`.
+
+Installing with Go
+------------------
+
+With a current stable Go installed:
+
+~~~shell
+go install github.com/caltechlibrary/logagent/cmd/logagent@latest
+~~~
+
+This puts `logagent` in `$(go env GOPATH)/bin` (or `$GOBIN`). It does not
+install the manual page.
 
 Installing from source
 ----------------------
 
 ### Required software
 
-1. Git (to clone the cold repository on GitHub)
-2. Deno >= 2.2
+1. Git, to clone the repository
+2. Go, the current stable release
+3. Pandoc, to produce the manual page
+4. make, `zip`, `grep`, `cut` and `sed`, which a POSIX system supplies (needed
+   by the Makefile only; plain `go build` needs none of them)
 
-### Compiling **LogAgent**
+Making a release also needs `gh` (the GitHub command line tool), and
+`release.bash` needs `jq`.
 
-Deno is used to compile the TypeScript and dependent JavaScript files into an executable.
-
-1. Use Deno's task to build project
-
-~~~shell
-deno task build
-~~~
-
-This will provide the `logagent` command in the "bin" folder in your repository directory.
-
-You can check to make sure `logagent` works for your system. The compiled version is self contain and can be copied someplace in your path. 
-
-### Manual install on POSIX
+### Compiling
 
 ~~~shell
-mkdir -p $HOME/bin
-export PATH="$HOME/bin:$PATH"
-cp bin/logagent $HOME/bin/
-export MANPATH="$MANPATH:$HOME/man"
-cp -vR man $HOME/
+git clone https://github.com/caltechlibrary/logagent
+cd logagent
+make
 ~~~
 
-### Manual install for Windows via Powershell
+This builds `bin/logagent`, generates the manual in `docs/` and the man page in
+`man/man1/`. You can also build with Go alone, which needs neither make nor
+Pandoc:
 
-~~~ps1
-mkdir $HOME/bin
-$PATH = [Environment]::GetEnvironmentVariable("PATH")
-[Environment]::SetEnvironmentVariable("PATH", "$PATH;$HOME/bin")
-copy ./bin/logagent.exe $HOME/bin/
+~~~shell
+go build -o bin/ ./cmd/...
 ~~~
+
+On Windows, without make:
+
+~~~powershell
+go build -o bin\logagent.exe .\cmd\logagent
+~~~
+
+Check that it works:
+
+~~~shell
+./bin/logagent --version
+~~~
+
+### Testing
+
+~~~shell
+make test
+~~~
+
+which runs `go vet ./...` and `go test ./...`.
+
+### Installing and uninstalling
+
+~~~shell
+make install
+make uninstall
+~~~
+
+`make install` installs the program in `$HOME/bin` and the man page in
+`$HOME/man`. Use `make install prefix=/usr/local` to install somewhere else
+(that needs permission to write there). Make sure the `bin` directory is on your
+`PATH` and the `man` directory is on your `MANPATH`.
+
+Making a release
+----------------
+
+~~~shell
+make release
+./release.bash
+~~~
+
+`make release` refreshes `version.go` from `codemeta.json`, runs the tests and
+builds the six zip files in `dist/`. `release.bash` (or `release.ps1` on
+Windows) writes checksums, commits and pushes, and creates a draft release with
+`gh` that you finish on GitHub. Update `version` and `releaseNotes` in
+`codemeta.json` first.

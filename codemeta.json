@@ -16,17 +16,21 @@
     }
   ],
   "dateCreated": "2025-01-23",
-  "dateModified": "2025-03-26",
+  "dateModified": "2026-10-07",
   "datePublished": "2024-03-26",
-  "description": "LogAgent was designed detecting bot based on log entries searching for specific sub strings. LogAnalyst was written to aggregate the structure in our logs to provide simple count \nrelations between log fields. The are intended to work with the NginX access logs we generate from our RDM instances. The tooling may work with other types of logs.",
+  "description": "logagent helps Caltech Library detect and mitigate automated traffic against its public web services. It reads nginx and Apache 2 access logs and configuration, so it works from the Library's own servers and does not depend on one vendor's edge. It judges behavior and not identity, keeps detailed data only briefly, and keeps long-term data only as aggregates, to protect reader privacy.",
   "funder": {
     "type": "Organization",
     "name": "Caltech Library"
   },
   "keywords": [
     "logging",
-    "agents",
-    "analyzer"
+    "web servers",
+    "nginx",
+    "apache",
+    "automated traffic",
+    "bots",
+    "privacy"
   ],
   "name": "logagent",
   "license": "https://data.caltech.edu/license",
@@ -36,11 +40,11 @@
     "macOS"
   ],
   "programmingLanguage": [
-    "TypeScript"
+    "Go"
   ],
-  "runtimePlatform": "Deno",
   "softwareRequirements": [
-    "deno >= 2.2.5"
+    "Go (current stable)",
+    "Pandoc (man pages)"
   ],
   "version": "0.0.4",
   "developmentStatus": "wip",

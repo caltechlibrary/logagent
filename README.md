@@ -1,50 +1,95 @@
+# logagent
 
-# Log Agent Project
+logagent helps Caltech Library detect and mitigate automated traffic against
+its public web services. It works from the Library's own servers, reading
+nginx and Apache 2 logs and configuration, so it does not depend on any one
+vendor's edge or on challenge pages that burden readers. It is being rewritten
+in Go and is a work in progress.
 
-A set of tools to automate some of the adhoc log analysis we perform on RDM repositories.
+## Status
 
-## LogAgent
-
-This is a simplified log processor that looks for explicit text on a line, parses the line for an IP address and then applies the associated action. It is inspired by fail2ban but is written in response fail2ban's complexity. Caltech Library needed a simple tool to do a narrow task that was oddly challenging using fail2ban. There is always a balancing act between a tool features and those that are simpler targeting a more specific issue.
-
-## LogAnalyst
-
-This provides a quick and dirty way of viewing aggregated counts based on transform the NginX log entries into structed data.
+**Work in progress.** The Go rewrite has a module skeleton and nothing more:
+`logagent --help`, `--version` and `--license`. The earlier Deno/TypeScript
+proof of concept (a tag-and-action log scanner in the spirit of fail2ban, and a
+log aggregator) is retired and remains in the repository's history.
 
 ## Approach
 
-LogAgent and LogAnalyst read logs input line by line. LogAgent checks if a tag (explicit sub-string) is contained in that line. If a match is found then the agent extracts any IP addresses identified before applying a rule associated with the tag. LogAnalyst will look at the log entry transform it into structured data for aggregating various simple counts.
+Defense is arranged in tiers by time scale. Each tier works without the ones
+outside it, and no tier overrides a lower one.
 
-LogAgent requires a configuration file written in YAML. The configuration holds an array of objects. Each object has the following attributes.  LogAnalyst just reads the log file as a stream, usually from standard input. When the processing is complete a simple analysis is displayed as a JSON object.
+0. **Capacity.** Fixed rules on the web server itself, such as concurrency
+   limits and caching. They need no daemon.
+1. **Detection.** Deterministic statistics over the access log: bursts,
+   baselines, and groups of requests ("cohorts") that share a fingerprint, ranked
+   by the load they put on the application rather than by request count.
+2. **Response.** Rules generate configuration for the web server. A person
+   approves it, it is a dry run by default, and it is applied only on
+   confirmation and only after the server's own configuration test passes.
+3. **Analysis.** Long-horizon review of aggregates, such as campaigns and
+   seasonal change, with a person judging the result.
+4. **Organizational.** Requests to other parties, and policy, which are
+   people's decisions and not software's.
 
-## LogAgent Configuration
+The planned command is a single `logagent` with subcommands:
 
-tag
-: The explicit search string (i.e. not regular expressions)
+`check`
+: read a web server's configuration and say whether the data detection needs is
+  being logged, suggesting the change when it is not
 
-action
-: The command to execute if tag is found
+`report`
+: summarize automated traffic and its cost, by family of client
 
-Here's an example configuration YAML file.
+`watch`
+: follow a log and raise alerts on bursts
 
-~~~YAML
-- tag: BadBot
-  action: |
-    sudo iptables -A INPUT -p tcp -m multiport
-    --dports 80,443 -s {ipaddress} -j DROP
-~~~
+`respond`
+: generate, and with confirmation apply, web server configuration
 
-If the text "BadBot" is found in the log line. and the IP address "156.59.198.136" was found in the log line then the following command would be executed.
+`analyze`
+: review aggregated history over weeks and months
+
+None of these subcommands exists yet.
+
+## Privacy
+
+Libraries protect the privacy of their readers, and logagent is built to keep
+that stance while keeping services available.
+
+- It judges **behavior** (rate, path pattern, cost), not identity, and uses what
+  it collects only to keep services available and secure.
+- It keeps three layers of data: the web server's own log, under the host's
+  retention policy; reduced events, with the address truncated and no query
+  string, referer or full path, kept for weeks; and daily aggregates with no
+  addresses, kept for months or years. Retention for each layer is
+  configurable.
+- It never stores search terms or referers. Address ranges that belong to the
+  institution itself (a campus network, remote sites, the Library's own cloud
+  addresses) are configurable and are never stored in detail or targeted.
+
+## Building
+
+Required: Go (current stable) and Pandoc (for the man pages). The `make` targets
+also use the `git`, `grep`, `cut`, `sed` and `zip` that the operating system
+supplies. `release.bash` additionally needs `gh` and `jq`, and `release.ps1`
+needs `gh`.
 
 ~~~shell
-    sudo iptables -A INPUT -p tcp -m multiport
-         --dports 80,443 -s 156.59.198.136 -j DROP
+make              # build bin/logagent, docs/ and man/
+make test         # go vet and go test
+make install      # install in $HOME/bin and $HOME/man (prefix=... to change)
+make release      # build the zip files in dist/, then run release.bash
 ~~~
 
-For more information see the following documentation pages.
+It also builds with plain Go commands:
 
-- [User Manual](user_manual.md)
-- [Installation](INSTALL.md) and compiling Log Agent from source
+~~~shell
+go build ./cmd/...
+go install github.com/caltechlibrary/logagent/cmd/logagent@latest
+~~~
+
+## Documentation
+
+- [Manual page](docs/logagent.1.md)
 - [LICENSE](LICENSE)
-- [About Log Agent](about.md)
 - [Cite with CITATION.cff](CITATION.cff)

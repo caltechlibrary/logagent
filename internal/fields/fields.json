@@ -1,0 +1,212 @@
+{
+  "version": 1,
+  "fields": [
+    {
+      "name": "client",
+      "description": "The client address; behind a proxy this is the visitor's address only if real-IP is configured.",
+      "needed_by": ["tier1", "tier2"],
+      "default": "required",
+      "applies": "always",
+      "combined": true,
+      "nginx": {"expr": "$remote_addr"},
+      "apache": {"expr": "%a"},
+      "if_missing": "Already in the combined format. Behind a proxy, add the real-IP configuration so the field holds the visitor and not the proxy."
+    },
+    {
+      "name": "user",
+      "description": "The authenticated user name, normally a dash on a public site.",
+      "needed_by": ["compatibility"],
+      "default": "optional",
+      "applies": "always",
+      "combined": true,
+      "nginx": {"expr": "$remote_user"},
+      "apache": {"expr": "%u"},
+      "if_missing": "Already in the combined format; nothing reads it."
+    },
+    {
+      "name": "time",
+      "description": "The time the request arrived, in the server's local time with offset.",
+      "needed_by": ["tier1", "tier2", "tier3"],
+      "default": "required",
+      "applies": "always",
+      "combined": true,
+      "nginx": {"expr": "$time_local"},
+      "apache": {"expr": "%t"},
+      "if_missing": "Already in the combined format."
+    },
+    {
+      "name": "request",
+      "description": "The request line: method, path and protocol.",
+      "needed_by": ["tier1", "tier2"],
+      "default": "required",
+      "applies": "always",
+      "combined": true,
+      "nginx": {"expr": "$request"},
+      "apache": {"expr": "%r"},
+      "if_missing": "Already in the combined format."
+    },
+    {
+      "name": "status",
+      "description": "The HTTP status the server sent.",
+      "needed_by": ["tier1", "tier2"],
+      "default": "required",
+      "applies": "always",
+      "combined": true,
+      "nginx": {"expr": "$status"},
+      "apache": {"expr": "%>s"},
+      "if_missing": "Already in the combined format."
+    },
+    {
+      "name": "bytes",
+      "description": "The size of the response body in bytes.",
+      "needed_by": ["tier1"],
+      "default": "required",
+      "applies": "always",
+      "combined": true,
+      "nginx": {"expr": "$body_bytes_sent"},
+      "apache": {"expr": "%B"},
+      "if_missing": "Already in the combined format."
+    },
+    {
+      "name": "referer",
+      "description": "The Referer header. The tools never keep it (DR-0002); the server's own log does.",
+      "needed_by": ["compatibility"],
+      "default": "optional",
+      "applies": "always",
+      "combined": true,
+      "nginx": {"expr": "$http_referer"},
+      "apache": {"expr": "%{Referer}i"},
+      "if_missing": "Already in the combined format; nothing reads it."
+    },
+    {
+      "name": "ua",
+      "description": "The User-Agent header, the first thing a cohort is built from.",
+      "needed_by": ["tier1", "tier2", "tier3"],
+      "default": "required",
+      "applies": "always",
+      "combined": true,
+      "nginx": {"expr": "$http_user_agent"},
+      "apache": {"expr": "%{User-Agent}i"},
+      "if_missing": "Already in the combined format."
+    },
+    {
+      "name": "rt",
+      "description": "Total time to serve the request, in seconds (nginx) or microseconds (Apache %D).",
+      "needed_by": ["tier1"],
+      "default": "required",
+      "applies": "always",
+      "nginx": {"expr": "$request_time"},
+      "apache": {"expr": "%D", "note": "Apache reports microseconds, nginx seconds; the reader converts."},
+      "if_missing": "Add to the log format."
+    },
+    {
+      "name": "urt",
+      "description": "Time the upstream took, the cost of a request; several values when nginx retried.",
+      "needed_by": ["tier1"],
+      "default": "required",
+      "applies": "always",
+      "quoted": true,
+      "nginx": {"expr": "$upstream_response_time"},
+      "apache": {"unavailable": true, "note": "Stock Apache has no upstream response time (to be verified); mark the field not_applicable or rely on rt."},
+      "if_missing": "Add to the log format. On Apache the field cannot be had; rank by rt instead."
+    },
+    {
+      "name": "cf_ray",
+      "description": "Cloudflare's request identifier, the handle central IT needs to find one request.",
+      "needed_by": ["tier1", "tier4"],
+      "default": "required",
+      "applies": "behind:cloudflare",
+      "quoted": true,
+      "nginx": {"expr": "$http_cf_ray"},
+      "apache": {"expr": "%{CF-Ray}i"},
+      "if_missing": "Add to the log format. Evidence packs for Cloudflare requests cite this value."
+    },
+    {
+      "name": "cf_country",
+      "description": "The country Cloudflare placed the client in.",
+      "needed_by": ["tier1"],
+      "default": "required",
+      "applies": "behind:cloudflare",
+      "quoted": true,
+      "nginx": {"expr": "$http_cf_ipcountry"},
+      "apache": {"expr": "%{CF-IPCountry}i"},
+      "if_missing": "Add to the log format."
+    },
+    {
+      "name": "peer",
+      "description": "The address of the connection itself, which tells a proxy edge from a direct client.",
+      "needed_by": ["tier1"],
+      "default": "required",
+      "applies": "behind_proxy",
+      "nginx": {"expr": "$realip_remote_addr"},
+      "apache": {"expr": "%{c}a"},
+      "if_missing": "Add to the log format; it needs the real-IP module configured."
+    },
+    {
+      "name": "lang",
+      "description": "The Accept-Language header, one of the cohort fingerprint signals.",
+      "needed_by": ["tier1"],
+      "default": "optional",
+      "applies": "always",
+      "quoted": true,
+      "nginx": {"expr": "$http_accept_language"},
+      "apache": {"expr": "%{Accept-Language}i"},
+      "if_missing": "Add to the log format."
+    },
+    {
+      "name": "ch_ua",
+      "description": "The Sec-CH-UA client hint, the browser brands the client claims.",
+      "needed_by": ["tier1"],
+      "default": "optional",
+      "applies": "always",
+      "quoted": true,
+      "nginx": {"expr": "$http_sec_ch_ua"},
+      "apache": {"expr": "%{Sec-CH-UA}i"},
+      "if_missing": "Add to the log format."
+    },
+    {
+      "name": "ch_plat",
+      "description": "The Sec-CH-UA-Platform client hint, the operating system the client claims.",
+      "needed_by": ["tier1"],
+      "default": "optional",
+      "applies": "always",
+      "quoted": true,
+      "nginx": {"expr": "$http_sec_ch_ua_platform"},
+      "apache": {"expr": "%{Sec-CH-UA-Platform}i"},
+      "if_missing": "Add to the log format."
+    },
+    {
+      "name": "bot_score",
+      "description": "Cloudflare's bot score for the request, when the plan sends it.",
+      "needed_by": ["tier1"],
+      "default": "optional",
+      "applies": "behind:cloudflare",
+      "quoted": true,
+      "nginx": {"expr": "$http_cf_bot_score"},
+      "apache": {"expr": "%{CF-Bot-Score}i"},
+      "if_missing": "Add to the log format, and ask central IT to enable the bot protection headers managed transform; without it the value is always a dash."
+    },
+    {
+      "name": "ja3",
+      "description": "Cloudflare's JA3 TLS fingerprint hash, when the plan sends it.",
+      "needed_by": ["tier1"],
+      "default": "optional",
+      "applies": "behind:cloudflare",
+      "quoted": true,
+      "nginx": {"expr": "$http_cf_ja3_hash"},
+      "apache": {"expr": "%{CF-JA3-Hash}i"},
+      "if_missing": "Add to the log format, and ask central IT to enable the bot protection headers managed transform."
+    },
+    {
+      "name": "ja4",
+      "description": "Cloudflare's JA4 TLS fingerprint, when the plan sends it.",
+      "needed_by": ["tier1"],
+      "default": "optional",
+      "applies": "behind:cloudflare",
+      "quoted": true,
+      "nginx": {"expr": "$http_cf_ja4"},
+      "apache": {"expr": "%{CF-JA4}i"},
+      "if_missing": "Add to the log format, and ask central IT to enable the bot protection headers managed transform."
+    }
+  ]
+}

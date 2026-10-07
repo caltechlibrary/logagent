@@ -14,6 +14,7 @@ import (
 	"os"
 	"sort"
 
+	"github.com/caltechlibrary/logagent/internal/fields"
 	"gopkg.in/yaml.v3"
 )
 
@@ -245,6 +246,9 @@ func (c *Config) validate() error {
 	}
 	sort.Strings(names)
 	for _, name := range names {
+		if !fields.Default().Has(name) {
+			return fmt.Errorf("fields.%s: no such field (see logagent help fields)", name)
+		}
 		switch c.Fields[name] {
 		case "required", "optional", "not_applicable":
 		default:

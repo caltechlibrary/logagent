@@ -39,6 +39,10 @@ var (
 	// schema (placeholder).
 	LogagentJSONLHelpText = help.MustText("logagent-jsonl.5")
 
+	// LogagentPrivacyHelpText is the logagent-privacy(7) manual page, what is
+	// collected, kept and never kept.
+	LogagentPrivacyHelpText = help.MustText("logagent-privacy.7")
+
 	// LogagentTiersHelpText is the logagent-tiers(7) manual page.
 	LogagentTiersHelpText = help.MustText("logagent-tiers.7")
 )

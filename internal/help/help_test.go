@@ -68,6 +68,7 @@ func TestLookup(t *testing.T) {
 		{"logagent-check", "logagent-check.1"},
 		{"jsonl", "logagent-jsonl.5"},
 		{"tiers", "logagent-tiers.7"},
+		{"privacy", "logagent-privacy.7"},
 	}
 	for _, c := range cases {
 		p, err := Lookup(c.topic)

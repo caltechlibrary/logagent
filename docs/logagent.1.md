@@ -63,6 +63,9 @@ logagent-config(5)
 logagent-jsonl(5)
 : the JSON Lines files logagent reads and writes (planned)
 
+logagent-privacy(7)
+: what is collected, kept and never kept
+
 logagent-tiers(7)
 : how defense is arranged in tiers
 

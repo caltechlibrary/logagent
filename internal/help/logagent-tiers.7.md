@@ -41,5 +41,5 @@ planned commands.
 
 # SEE ALSO
 
-{app_name}(1), {app_name}-jsonl(5)
+{app_name}(1), {app_name}-jsonl(5), {app_name}-privacy(7)
 

@@ -41,5 +41,5 @@ planned commands.
 
 # SEE ALSO
 
-logagent(1), logagent-jsonl(5)
+logagent(1), logagent-jsonl(5), logagent-privacy(7)
 

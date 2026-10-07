@@ -63,6 +63,9 @@ Each command has its own manual page, named {app_name}-COMMAND(1), for example
 {app_name}-jsonl(5)
 : the JSON Lines files {app_name} reads and writes (planned)
 
+{app_name}-privacy(7)
+: what is collected, kept and never kept
+
 {app_name}-tiers(7)
 : how defense is arranged in tiers
 

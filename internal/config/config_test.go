@@ -116,6 +116,7 @@ func TestLoadRejectsBadFiles(t *testing.T) {
 		{"zero retention", minimal + "retention:\n  layer2_days: 0\n", "retention.layer2_days"},
 		{"negative retention", minimal + "retention:\n  layer3_days: -1\n", "retention.layer3_days"},
 		{"min above max", minimal + "retention:\n  layer1_min_days: 100\n  layer1_max_days: 90\n", "layer1_min_days"},
+		{"unknown field name", minimal + "fields:\n  bot_scor: optional\n", "fields.bot_scor"},
 		{"bad field setting", minimal + "fields:\n  bot_score: maybe\n", "fields.bot_score"},
 		{"not yaml", "version: [1\n", ""},
 	}

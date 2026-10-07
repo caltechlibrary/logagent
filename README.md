@@ -54,7 +54,7 @@ None of these subcommands exists yet.
 ## Privacy
 
 Libraries protect the privacy of their readers, and logagent is built to keep
-that stance while keeping services available.
+that stance while keeping services available (`logagent help privacy`).
 
 - It judges **behavior** (rate, path pattern, cost), not identity, and uses what
   it collects only to keep services available and secure.

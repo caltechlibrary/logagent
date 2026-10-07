@@ -75,6 +75,10 @@ A finding has a severity: `gap` (data the tiers need is not logged, or the
 configuration is wrong), `warn` (worth a look; no required data is lost) or
 `note` (an optional improvement). Only gaps make the exit status 1.
 
+When the same problem is found in several server blocks, such as no real-IP
+setting in three of them, it is reported once. The message names every server and
+the finding lists the other places in `also`.
+
 field-missing
 : a field is not in the log format. A required field is a gap, an optional field
   is a note.

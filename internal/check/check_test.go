@@ -472,10 +472,13 @@ func TestReportMarshalsToJSONWithStableKeys(t *testing.T) {
 	if len(back.Logs) != 1 || len(back.Findings) == 0 || back.Exit != 1 {
 		t.Fatalf("json = %s", data)
 	}
-	for _, k := range []string{"code", "severity", "message", "field", "log", "at", "suggestion"} {
+	for _, k := range []string{"code", "severity", "message", "field", "log", "at", "also", "suggestion"} {
 		if _, ok := back.Findings[0][k]; !ok {
 			t.Errorf("finding has no %q key: %v", k, back.Findings[0])
 		}
+	}
+	if _, ok := back.Findings[0]["also"].([]any); !ok {
+		t.Errorf("also = %#v, want an array even when empty", back.Findings[0]["also"])
 	}
 }
 
@@ -628,5 +631,96 @@ func TestAJSONEscapedFormatIsNotSampled(t *testing.T) {
 	Run(in)
 	if gotFormat != `$remote_addr "$request"` {
 		t.Errorf("format = %q", gotFormat)
+	}
+}
+
+// Three server blocks with no real-IP setting are one problem, found three times.
+func TestTheSameRealIPProblemInManyServersIsOneFinding(t *testing.T) {
+	text := "# configuration file /etc/nginx/sites.conf:\nhttp {\n" + full + "\naccess_log " + logPath + " full;\n" +
+		"server { server_name a.example; listen 443; }\n" +
+		"server { server_name a.example; listen 80; }\n" +
+		"server { server_name b.example; listen 80; }\n}\n"
+	r := run(t, cfg("cloudflare", nil), text)
+	got := find(r, "real-ip-missing")
+	if len(got) != 1 {
+		t.Fatalf("%d real-ip-missing findings, want 1: %+v", len(got), got)
+	}
+	f := got[0]
+	for _, want := range []string{"a.example:443", "a.example:80", "b.example:80"} {
+		if !strings.Contains(f.Message, want) {
+			t.Errorf("message lacks %s: %s", want, f.Message)
+		}
+	}
+	if strings.Count(f.Message, "a.example:80") != 1 {
+		t.Errorf("a server listed twice: %s", f.Message)
+	}
+	// The finding points at the first server and lists where the others are.
+	// Line numbers count from the line after the file header.
+	lineOf := func(marker string) int {
+		after := strings.SplitN(text, "\n", 2)[1]
+		return strings.Count(after[:strings.Index(after, marker)], "\n") + 1
+	}
+	first, second, third := lineOf("server_name a.example; listen 443"), lineOf("server_name a.example; listen 80"), lineOf("server_name b.example")
+	if f.At != (Place{File: "/etc/nginx/sites.conf", Line: first}) {
+		t.Errorf("At = %+v, want the first server block at line %d", f.At, first)
+	}
+	if len(f.Also) != 2 || f.Also[0].Line != second || f.Also[1].Line != third {
+		t.Errorf("Also = %+v, want lines %d and %d", f.Also, second, third)
+	}
+	if r.ExitCode() != 1 {
+		t.Errorf("ExitCode = %d", r.ExitCode())
+	}
+}
+
+func TestDifferentRealIPProblemsStaySeparate(t *testing.T) {
+	text := "http {\n" + full + "\naccess_log " + logPath + " full;\n" +
+		"server { server_name a.example; }\n" +
+		"server { server_name b.example; set_real_ip_from 173.245.48.0/20; real_ip_header X-Forwarded-For; }\n}\n"
+	r := run(t, cfg("cloudflare", nil), text)
+	if len(find(r, "real-ip-missing")) != 1 || len(find(r, "real-ip-header-mismatch")) != 1 {
+		t.Errorf("findings = %+v", r.Findings)
+	}
+	for _, f := range r.Findings {
+		if len(f.Also) != 0 {
+			t.Errorf("%s: Also = %+v, want none", f.Code, f.Also)
+		}
+	}
+}
+
+// Two servers each writing the same wrong header in their own place are one
+// finding that names both places.
+func TestTheSameWrongHeaderInTwoPlacesIsOneFindingWithBoth(t *testing.T) {
+	text := "http {\n" + full + "\naccess_log " + logPath + " full;\nset_real_ip_from 173.245.48.0/20;\n" +
+		"server { server_name a.example; real_ip_header X-Forwarded-For; }\n" +
+		"server { server_name b.example;\n real_ip_header X-Forwarded-For; }\n}\n"
+	r := run(t, cfg("cloudflare", nil), text)
+	got := find(r, "real-ip-header-mismatch")
+	if len(got) != 1 || len(got[0].Also) != 1 || got[0].At == got[0].Also[0] {
+		t.Fatalf("findings = %+v", got)
+	}
+	if !strings.Contains(got[0].Message, "a.example, b.example") {
+		t.Errorf("message = %s", got[0].Message)
+	}
+}
+
+func TestAServerNameShownTwiceIsListedOnce(t *testing.T) {
+	// new-data has two server blocks that are both data.caltech.edu on port 80.
+	text := "http {\n" + full + "\naccess_log " + logPath + " full;\n" +
+		"server { server_name a.example; listen 80; }\nserver { server_name a.example; listen 80; }\n}\n"
+	r := run(t, cfg("cloudflare", nil), text)
+	got := find(r, "real-ip-missing")
+	if len(got) != 1 || strings.Count(got[0].Message, "a.example:80") != 1 || len(got[0].Also) != 1 {
+		t.Errorf("findings = %+v", got)
+	}
+}
+
+func TestAPlaceSharedByLaterServersIsListedOnce(t *testing.T) {
+	// a has its own wrong header; b and c both inherit the same wrong one from http.
+	text := "http {\n" + full + "\naccess_log " + logPath + " full;\nset_real_ip_from 173.245.48.0/20;\nreal_ip_header X-Forwarded-For;\n" +
+		"server { server_name a.example; real_ip_header X-Forwarded-For; }\nserver { server_name b.example; }\nserver { server_name c.example; }\n}\n"
+	r := run(t, cfg("cloudflare", nil), text)
+	got := find(r, "real-ip-header-mismatch")
+	if len(got) != 1 || len(got[0].Also) != 1 {
+		t.Errorf("findings = %+v", got)
 	}
 }

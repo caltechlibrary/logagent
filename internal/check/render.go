@@ -50,6 +50,13 @@ func WriteText(w io.Writer, r *Report) error {
 		if f.At != (Place{}) {
 			fmt.Fprintf(&b, "    at %s\n", f.At)
 		}
+		if len(f.Also) > 0 {
+			places := make([]string, len(f.Also))
+			for i, p := range f.Also {
+				places[i] = p.String()
+			}
+			fmt.Fprintf(&b, "    also at %s\n", strings.Join(places, ", "))
+		}
 		if f.Suggestion != "" {
 			writeIndented(&b, f.Suggestion, "    ")
 		}

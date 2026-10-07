@@ -78,3 +78,12 @@ func TestWriteTextPutsGapsBeforeWarnings(t *testing.T) {
 		t.Errorf("a warning is listed before a gap:\n%s", out)
 	}
 }
+
+func TestWriteTextShowsTheOtherPlacesOfAMergedFinding(t *testing.T) {
+	text := "# configuration file /etc/nginx/sites.conf:\nhttp {\n" + full + "\naccess_log " + logPath + " full;\n" +
+		"server { server_name a.example; listen 443; }\nserver { server_name b.example; listen 80; }\n}\n"
+	out := render(t, run(t, cfg("cloudflare", nil), text))
+	if !strings.Contains(out, "also at /etc/nginx/sites.conf:") || strings.Count(out, "real-ip-missing") != 1 {
+		t.Errorf("output:\n%s", out)
+	}
+}

@@ -102,13 +102,16 @@ type LogReport struct {
 
 // Finding is one thing the check found.
 type Finding struct {
-	Code       string `json:"code"`
-	Severity   string `json:"severity"`
-	Message    string `json:"message"`
-	Field      string `json:"field"`
-	Log        string `json:"log"`
-	At         Place  `json:"at"`
-	Suggestion string `json:"suggestion"`
+	Code     string `json:"code"`
+	Severity string `json:"severity"`
+	Message  string `json:"message"`
+	Field    string `json:"field"`
+	Log      string `json:"log"`
+	At       Place  `json:"at"`
+	// Also lists the other places a merged finding was found, when the same
+	// problem was met in several places.
+	Also       []Place `json:"also"`
+	Suggestion string  `json:"suggestion"`
 }
 
 // Report is the result of a check.
@@ -150,6 +153,12 @@ func (r *Report) MarshalJSON() ([]byte, error) {
 	}
 	if out.Findings == nil {
 		out.Findings = []Finding{}
+	}
+	out.Findings = append([]Finding(nil), out.Findings...)
+	for i := range out.Findings {
+		if out.Findings[i].Also == nil {
+			out.Findings[i].Also = []Place{}
+		}
 	}
 	return json.Marshal(out)
 }
@@ -360,8 +369,7 @@ func suggestFormat(tab *fields.Table, lr LogReport) string {
 // findings that point at the same place into one that names every server.
 func (r *Report) checkRealIP(c *config.Config, servers []*nginxconf.Directive, add func(Finding)) {
 	type key struct {
-		code string
-		at   Place
+		code, message string
 	}
 	type pending struct {
 		f       Finding
@@ -369,13 +377,22 @@ func (r *Report) checkRealIP(c *config.Config, servers []*nginxconf.Directive, a
 	}
 	var order []key
 	seen := map[key]*pending{}
+	// put records a finding, merging it with an earlier one that says the same
+	// thing, as happens when several servers lack the same setting.
 	put := func(f Finding, server string) {
-		k := key{f.Code, f.At}
+		k := key{f.Code, f.Message}
 		p := seen[k]
 		if p == nil {
 			p = &pending{f: f}
 			seen[k] = p
 			order = append(order, k)
+		} else if f.At != p.f.At && !containsPlace(p.f.Also, f.At) {
+			p.f.Also = append(p.f.Also, f.At)
+		}
+		for _, s := range p.servers {
+			if s == server {
+				return
+			}
 		}
 		p.servers = append(p.servers, server)
 	}
@@ -430,6 +447,15 @@ func realIPSuggestion(c *config.Config) string {
 	}
 	fmt.Fprintf(&b, "real_ip_header %s;\n", h)
 	return b.String()
+}
+
+func containsPlace(ps []Place, p Place) bool {
+	for _, q := range ps {
+		if q == p {
+			return true
+		}
+	}
+	return false
 }
 
 func serverLabel(srv *nginxconf.Directive) string {

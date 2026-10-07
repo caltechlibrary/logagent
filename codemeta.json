@@ -43,7 +43,7 @@
     "deno >= 2.2.5"
   ],
   "version": "0.0.4",
-  "developmentStatus": "abandoned",
+  "developmentStatus": "wip",
   "issueTracker": "https://github.com/caltechlibrary/logagent/issues",
   "downloadUrl": "https://github.com/caltechlibrary/logagent/releases",
   "releaseNotes": "Working proof of concept fo LogAgent and LogAnalyst."

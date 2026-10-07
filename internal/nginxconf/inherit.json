@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "note": "Directives that nginx inherits as a whole list: a context that defines any of them replaces every inherited one. Every other directive is inherited singly, and the innermost definition wins. Add a name here when a host uses a directive of this kind.",
+  "array": [
+    "access_log",
+    "add_header",
+    "add_trailer",
+    "allow",
+    "auth_request_set",
+    "deny",
+    "error_log",
+    "error_page",
+    "fastcgi_param",
+    "grpc_set_header",
+    "limit_conn",
+    "limit_req",
+    "proxy_cache_bypass",
+    "proxy_cache_valid",
+    "proxy_hide_header",
+    "proxy_ignore_headers",
+    "proxy_no_cache",
+    "proxy_pass_header",
+    "proxy_redirect",
+    "proxy_set_header",
+    "scgi_param",
+    "set_real_ip_from",
+    "uwsgi_param"
+  ]
+}

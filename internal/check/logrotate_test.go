@@ -126,7 +126,12 @@ func TestMaxSizeIsANoteBecauseItCanRotateEarly(t *testing.T) {
 
 func TestALogNoStanzaGovernsIsAWarning(t *testing.T) {
 	r := rotated(t, cfg("none", nil), rotation(t, "/var/log/other/*.log {\n daily\n rotate 14\n}\n"))
-	got := find(r, "logrotate-no-match")
+	var got []Finding
+	for _, f := range find(r, "logrotate-no-match") {
+		if f.Log == logPath { // the error log has no block either; see errorlog_test.go
+			got = append(got, f)
+		}
+	}
 	if len(got) != 1 || got[0].Severity != Warn || got[0].Log != logPath || !strings.Contains(got[0].Message, "/etc/logrotate.d/nginx") {
 		t.Errorf("findings = %+v", r.Findings)
 	}

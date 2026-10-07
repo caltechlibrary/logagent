@@ -79,7 +79,7 @@ func host(format, extra string) string {
 	if format != "" {
 		use = "full"
 	}
-	return "http {\n" + format + "\naccess_log " + logPath + " " + use + ";\n" + extra + "\nserver { server_name a.example; }\n}\n"
+	return "error_log /var/log/nginx/error.log warn;\nhttp {\n" + format + "\naccess_log " + logPath + " " + use + ";\n" + extra + "\nserver { server_name a.example; }\n}\n"
 }
 
 const realIP = `
@@ -702,7 +702,7 @@ func TestTheSameRealIPProblemInManyServersIsOneFinding(t *testing.T) {
 }
 
 func TestDifferentRealIPProblemsStaySeparate(t *testing.T) {
-	text := "http {\n" + full + "\naccess_log " + logPath + " full;\n" +
+	text := "error_log /var/log/nginx/error.log warn;\nhttp {\n" + full + "\naccess_log " + logPath + " full;\n" +
 		"server { server_name a.example; }\n" +
 		"server { server_name b.example; set_real_ip_from 173.245.48.0/20; real_ip_header X-Forwarded-For; }\n}\n"
 	r := run(t, cfg("cloudflare", nil), text)

@@ -381,8 +381,9 @@ func Run(in Input) (*Report, error) {
 		}
 	}
 
+	checkErrorLogs(tree, servers, add)
 	if len(in.Logrotate) > 0 || in.LogrotateErr != nil {
-		checkLogrotate(c, in, add)
+		checkLogrotate(c, in, errorLogPaths(tree), add)
 	}
 
 	have := map[string]bool{}
@@ -401,7 +402,7 @@ func Run(in Input) (*Report, error) {
 
 // checkLogrotate compares how long logrotate keeps each configured log with
 // the floor the tiers need and the ceiling policy allows (DR-0002).
-func checkLogrotate(c *config.Config, in Input, add func(Finding)) {
+func checkLogrotate(c *config.Config, in Input, errorLogs []string, add func(Finding)) {
 	if in.LogrotateErr != nil {
 		add(Finding{Code: "logrotate-unreadable", Severity: Warn,
 			Message:    fmt.Sprintf("the logrotate file named by retention.logrotate could not be used, so retention was not checked: %v", in.LogrotateErr),
@@ -426,7 +427,19 @@ func checkLogrotate(c *config.Config, in Input, add func(Finding)) {
 	}
 	var groups []*group
 	byStanza := map[*logrotate.Stanza]*group{}
+	paths := make([]string, 0, len(c.Logs)+len(errorLogs))
+	have := map[string]bool{}
 	for _, l := range c.Logs {
+		paths = append(paths, l.Path)
+		have[l.Path] = true
+	}
+	for _, p := range errorLogs {
+		if !have[p] {
+			paths = append(paths, p)
+		}
+	}
+	for _, path := range paths {
+		l := struct{ Path string }{path}
 		s, ok := main.For(l.Path)
 		if !ok {
 			add(Finding{Code: "logrotate-no-match", Severity: Warn, Log: l.Path,
@@ -528,34 +541,8 @@ func suggestFormat(tab *fields.Table, lr LogReport) string {
 // findings that point at the same place into one that names every server.
 func (r *Report) checkRealIP(c *config.Config, servers []*nginxconf.Directive, snapshot *proxyranges.Snapshot, add func(Finding)) {
 	expected, expectedName := expectedRanges(c, snapshot)
-	type key struct {
-		code, message string
-	}
-	type pending struct {
-		f       Finding
-		servers []string
-	}
-	var order []key
-	seen := map[key]*pending{}
-	// put records a finding, merging it with an earlier one that says the same
-	// thing, as happens when several servers lack the same setting.
-	put := func(f Finding, server string) {
-		k := key{f.Code, f.Message}
-		p := seen[k]
-		if p == nil {
-			p = &pending{f: f}
-			seen[k] = p
-			order = append(order, k)
-		} else if f.At != p.f.At && !containsPlace(p.f.Also, f.At) {
-			p.f.Also = append(p.f.Also, f.At)
-		}
-		for _, s := range p.servers {
-			if s == server {
-				return
-			}
-		}
-		p.servers = append(p.servers, server)
-	}
+	merged := newMerger()
+	put := merged.put
 	want := c.Proxy.RealIPHeader
 	for _, srv := range servers {
 		label := serverLabel(srv)
@@ -604,9 +591,51 @@ func (r *Report) checkRealIP(c *config.Config, servers []*nginxconf.Directive, s
 				Suggestion: "Trust only the proxy's published ranges unless these are proxies of yours, such as an internal load balancer."}, label)
 		}
 	}
-	for _, k := range order {
-		p := seen[k]
-		p.f.Message += " (servers: " + strings.Join(p.servers, ", ") + ")"
+	merged.flush(add, "servers")
+}
+
+// merger collects findings and merges those that say the same thing, as when
+// several servers or places have the same problem. The merged finding points at
+// the first place, lists the other places in Also, and names every label.
+type merger struct {
+	order []mergeKey
+	seen  map[mergeKey]*mergePending
+}
+
+type mergeKey struct{ code, message string }
+
+type mergePending struct {
+	f      Finding
+	labels []string
+}
+
+func newMerger() *merger { return &merger{seen: map[mergeKey]*mergePending{}} }
+
+// put records a finding found at the place the label names.
+func (m *merger) put(f Finding, label string) {
+	k := mergeKey{f.Code, f.Message}
+	p := m.seen[k]
+	if p == nil {
+		p = &mergePending{f: f}
+		m.seen[k] = p
+		m.order = append(m.order, k)
+	} else if f.At != p.f.At && !containsPlace(p.f.Also, f.At) {
+		p.f.Also = append(p.f.Also, f.At)
+	}
+	for _, l := range p.labels {
+		if l == label {
+			return
+		}
+	}
+	p.labels = append(p.labels, label)
+}
+
+// flush hands the merged findings on, in the order first found, each with
+// "(word: label, label)" added to its message.
+func (m *merger) flush(add func(Finding), word string) {
+	for _, k := range m.order {
+		p := m.seen[k]
+		p.f.Message += " (" + word + ": " + strings.Join(p.labels, ", ") + ")"
 		add(p.f)
 	}
 }
@@ -752,4 +781,164 @@ func hasVariable(format, expr string) bool {
 
 func isNameChar(c byte) bool {
 	return c == '_' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+}
+
+// logLevels orders nginx's error log levels from the most verbose.
+var logLevels = map[string]int{"debug": 0, "info": 1, "notice": 2, "warn": 3, "error": 4, "crit": 5, "alert": 6, "emerg": 7}
+
+func levelIndex(name string) int {
+	if i, ok := logLevels[name]; ok {
+		return i
+	}
+	return logLevels["error"]
+}
+
+// errorLogsAt returns the error_log directives in force at a context: the
+// nearest context that sets any, up through http, then the main context's.
+func errorLogsAt(tree []*nginxconf.Directive, ctx *nginxconf.Directive) []*nginxconf.Directive {
+	if d := nginxconf.Effective(ctx, "error_log"); len(d) > 0 {
+		return d
+	}
+	var out []*nginxconf.Directive
+	for _, d := range tree {
+		if d.Name == "error_log" {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+func errorLogLevel(d *nginxconf.Directive) string {
+	if len(d.Args) > 1 {
+		return d.Args[1]
+	}
+	return "error"
+}
+
+// recordsAnything reports whether an error_log target keeps what it is given.
+func recordsAnything(d *nginxconf.Directive) bool {
+	return len(d.Args) > 0 && d.Args[0] != "/dev/null"
+}
+
+// errorLogFile returns the path of an error_log target that is an absolute file.
+func errorLogFile(d *nginxconf.Directive) (string, bool) {
+	if len(d.Args) == 0 || !strings.HasPrefix(d.Args[0], "/") || d.Args[0] == "/dev/null" {
+		return "", false
+	}
+	return d.Args[0], true
+}
+
+// errorLogPaths lists the error log files named anywhere in the configuration,
+// once each, in the order they appear.
+func errorLogPaths(tree []*nginxconf.Directive) []string {
+	var out []string
+	seen := map[string]bool{}
+	nginxconf.Walk(tree, func(d *nginxconf.Directive) {
+		if d.Name != "error_log" {
+			return
+		}
+		if p, ok := errorLogFile(d); ok && !seen[p] {
+			seen[p] = true
+			out = append(out, p)
+		}
+	})
+	return out
+}
+
+// contextLabel names a server, location or http block for a message.
+func contextLabel(ctx *nginxconf.Directive) string {
+	switch ctx.Name {
+	case "server":
+		return serverLabel(ctx)
+	case "location":
+		for p := ctx.Parent; p != nil; p = p.Parent {
+			if p.Name == "server" {
+				return serverLabel(p) + " " + strings.Join(ctx.Args, " ")
+			}
+		}
+		return strings.Join(ctx.Args, " ")
+	}
+	return ctx.Name
+}
+
+// checkErrorLogs finds an error log that cannot record what the configuration
+// says it will: caps logged below the error_log level, or no error log at all.
+func checkErrorLogs(tree, servers []*nginxconf.Directive, add func(Finding)) {
+	hidden := newMerger()
+	nginxconf.Walk(tree, func(d *nginxconf.Directive) {
+		if (d.Name != "limit_conn" && d.Name != "limit_req") || d.Parent == nil {
+			return
+		}
+		ctx := d.Parent
+		// One finding per context and kind, naming every zone, at the first directive.
+		for _, e := range ctx.Block {
+			if e.Name == d.Name && e != d {
+				if e.Line < d.Line || (e.Line == d.Line && e.File < d.File) {
+					return
+				}
+			}
+		}
+		level := "error"
+		if l := nginxconf.Effective(ctx, d.Name+"_log_level"); len(l) > 0 && len(l[0].Args) > 0 {
+			level = l[0].Args[0]
+		}
+		logs := errorLogsAt(tree, ctx)
+		visible := false
+		var described []string
+		for _, l := range logs {
+			described = append(described, errorLogLevel(l)+" at "+placeOf(l).String())
+			if recordsAnything(l) && levelIndex(level) >= levelIndex(errorLogLevel(l)) {
+				visible = true
+			}
+		}
+		if visible {
+			return
+		}
+		if len(logs) == 0 {
+			described = []string{"error by default"}
+		}
+		var zones []string
+		for _, e := range ctx.Block {
+			if e.Name != d.Name || len(e.Args) == 0 {
+				continue
+			}
+			z := e.Args[0]
+			if d.Name == "limit_req" {
+				z = strings.TrimPrefix(strings.Fields(strings.Join(e.Args, " "))[0], "zone=")
+				for _, a := range e.Args {
+					if strings.HasPrefix(a, "zone=") {
+						z = strings.TrimPrefix(a, "zone=")
+					}
+				}
+			}
+			zones = append(zones, z)
+		}
+		hidden.put(Finding{Code: "error-log-level-hides-limits", Severity: Warn, At: placeOf(d),
+			Message: fmt.Sprintf("%s rejections (zone %s) are logged at %s, but the effective error_log is %s, so they are not recorded",
+				d.Name, strings.Join(zones, ", "), level, strings.Join(described, "; ")),
+			Suggestion: fmt.Sprintf("Set the error_log to %s or more verbose (error_log /var/log/nginx/error.log %s;), or set %s_log_level error to log the rejections at the level the error_log keeps.",
+				level, level, d.Name)}, contextLabel(ctx))
+	})
+	hidden.flush(add, "in")
+
+	disabled, missing := newMerger(), newMerger()
+	for _, srv := range servers {
+		logs := errorLogsAt(tree, srv)
+		recording := false
+		for _, l := range logs {
+			recording = recording || recordsAnything(l)
+		}
+		switch {
+		case len(logs) == 0:
+			missing.put(Finding{Code: "error-log-default", Severity: Note, At: placeOf(srv),
+				Message:    "no error_log is set, so nginx uses its compiled-in default path and the error level, and this check cannot find or rotate-check that file",
+				Suggestion: "Set error_log /var/log/nginx/error.log warn; in the main context so the log's place and level are written down."}, serverLabel(srv))
+		case !recording:
+			disabled.put(Finding{Code: "error-log-disabled", Severity: Warn, At: placeOf(logs[0]),
+				Message:    "the effective error_log is /dev/null, so nginx errors, including upstream failures, are not recorded",
+				Suggestion: "Point error_log at a file, for example error_log /var/log/nginx/error.log warn;."}, serverLabel(srv))
+		}
+	}
+	disabled.flush(add, "servers")
+	missing.flush(add, "servers")
 }

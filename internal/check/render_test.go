@@ -28,10 +28,10 @@ func TestWriteTextCleanReport(t *testing.T) {
 }
 
 func TestWriteTextListsFindingsBySeverityWithPlaceAndSuggestion(t *testing.T) {
-	text := "# configuration file /etc/nginx/nginx.conf:\nhttp {\n    access_log " + logPath + " combined;\n    server { server_name a.example; }\n}\n"
+	text := "# configuration file /etc/nginx/nginx.conf:\nerror_log /var/log/nginx/error.log warn;\nhttp {\n    access_log " + logPath + " combined;\n    server { server_name a.example; }\n}\n"
 	out := render(t, run(t, cfg("none", nil), text))
 	for _, want := range []string{
-		"[gap] field-missing rt", "[note] field-missing lang", "/etc/nginx/nginx.conf:2",
+		"[gap] field-missing rt", "[note] field-missing lang", "/etc/nginx/nginx.conf:3",
 		"log_format", "2 gaps", "3 notes",
 	} {
 		if !strings.Contains(out, want) {

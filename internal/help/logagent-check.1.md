@@ -48,7 +48,8 @@ an issue. Lines that do not match the format are counted as skipped.
 
 When the host configuration names a logrotate file in `retention.logrotate`,
 {app_name} check reads the block that governs each configured log and counts how
-many days of it logrotate keeps. It compares that with `retention.layer1_min_days`
+many days of it logrotate keeps. The error logs named by `error_log` in the nginx
+configuration are counted too, because they hold client addresses as well. It compares that with `retention.layer1_min_days`
 and `retention.layer1_max_days` ({app_name}-config(5)). If the file is in a
 `logrotate.d` directory, the `logrotate.conf` beside that directory is read as
 well, for the global options a block leaves unset. `include` lines are not
@@ -146,6 +147,20 @@ real-ip-trusts-other-ranges
 : the trust list holds a range that is not inside the proxy's, such as an
   internal load balancer or a range wider than the proxy's own (a note). Any
   address in it can set the address that is logged.
+
+error-log-level-hides-limits
+: `limit_conn` or `limit_req` rejections are logged at a level the `error_log`
+  does not keep, so nginx drops them silently (a warning). The default level for
+  both is `error`; `limit_conn_log_level warn` with an `error_log` left at its
+  default is the usual cause. The finding names the zones and the context.
+
+error-log-disabled
+: the effective `error_log` is `/dev/null`, so nginx errors, including upstream
+  failures, are not recorded (a warning).
+
+error-log-default
+: no `error_log` is set, so nginx uses its compiled-in path and level and the
+  check cannot find the file (a note).
 
 logrotate-retention-short
 : logrotate keeps fewer days of a log than the tiers need,

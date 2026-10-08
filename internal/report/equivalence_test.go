@@ -3,6 +3,7 @@ package report
 import (
 	"math"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -201,4 +202,107 @@ func keys(m map[string]FamilyRow) []string {
 		k = append(k, name)
 	}
 	return k
+}
+
+// concBlock is one group's lines from bot-concurrency.py's output.
+type concBlock struct {
+	p50, p90, p99, max int
+	seconds            map[int]int // threshold to seconds at or above it
+}
+
+// parseConcurrency reads the script's output: the span and request counts, then a
+// block for each group that begins with the group's label.
+func parseConcurrency(t *testing.T, text string) (seconds, requests, limited int, groups map[string]concBlock) {
+	t.Helper()
+	head := regexp.MustCompile(`seconds analysed: (\d+) .*, /api requests (\d+), 429s (\d+)`).FindStringSubmatch(text)
+	if head == nil {
+		t.Fatalf("no summary line in:\n%s", text)
+	}
+	seconds, _ = strconv.Atoi(head[1])
+	requests, _ = strconv.Atoi(head[2])
+	limited, _ = strconv.Atoi(head[3])
+	groups = map[string]concBlock{}
+	pct := regexp.MustCompile(`p50=(\d+) p90=(\d+) p99=(\d+) max=(\d+)`)
+	share := regexp.MustCompile(`seconds with >= *(\d+) in flight: *(\d+)`)
+	var label string
+	var cur concBlock
+	flush := func() {
+		if label != "" {
+			groups[label] = cur
+		}
+	}
+	for _, l := range strings.Split(text, "\n") {
+		switch {
+		case strings.HasPrefix(l, "non-campus /api ("):
+			flush()
+			label, cur = "api (all)", concBlock{seconds: map[int]int{}}
+		case strings.HasPrefix(l, "non-campus /api/iiif/"):
+			flush()
+			label, cur = "api-iiif", concBlock{seconds: map[int]int{}}
+		case strings.HasPrefix(l, "campus /api"):
+			flush()
+			label = ""
+		}
+		if label == "" {
+			continue
+		}
+		if m := pct.FindStringSubmatch(l); m != nil {
+			cur.p50, _ = strconv.Atoi(m[1])
+			cur.p90, _ = strconv.Atoi(m[2])
+			cur.p99, _ = strconv.Atoi(m[3])
+			cur.max, _ = strconv.Atoi(m[4])
+		}
+		if m := share.FindStringSubmatch(l); m != nil {
+			th, _ := strconv.Atoi(m[1])
+			n, _ := strconv.Atoi(m[2])
+			cur.seconds[th] = n
+		}
+	}
+	flush()
+	return
+}
+
+func TestConcurrencyMatchesBotConcurrencyPyForTheFrozenLog(t *testing.T) {
+	data, err := os.ReadFile("testdata/concurrency/concurrency.expected")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantSeconds, wantRequests, wantLimited, groups := parseConcurrency(t, string(data))
+	p, err := sample.Compile(realFormat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := Collect("testdata/concurrency/access.log", p, Options{Class: authorsRules(t).Class, Lookup: classify.DefaultFamilies().Lookup, MinClients: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := r.Concurrency
+	if c.Seconds != wantSeconds || c.Requests != wantRequests || c.Limited != wantLimited {
+		t.Errorf("span %d seconds, %d requests, %d limited; script %d, %d, %d", c.Seconds, c.Requests, c.Limited, wantSeconds, wantRequests, wantLimited)
+	}
+	by := map[string]ConcurrencyRow{}
+	for _, row := range c.Rows {
+		by[row.Class] = row
+	}
+	if len(groups) != 2 {
+		t.Fatalf("parsed %d groups from the script's output, want 2: %v", len(groups), groups)
+	}
+	for label, want := range groups {
+		got, ok := by[label]
+		if !ok {
+			t.Errorf("no row for %q", label)
+			continue
+		}
+		if got.P50 != want.p50 || got.P90 != want.p90 || got.P99 != want.p99 || got.Max != want.max {
+			t.Errorf("%s: p50 %d p90 %d p99 %d max %d; script %d %d %d %d", label, got.P50, got.P90, got.P99, got.Max, want.p50, want.p90, want.p99, want.max)
+		}
+		if len(want.seconds) != len(thresholds) {
+			t.Errorf("%s: parsed %d thresholds from the script, want %d", label, len(want.seconds), len(thresholds))
+		}
+		for _, s := range got.Shares {
+			if n, ok := want.seconds[s.AtLeast]; !ok || s.Seconds != n {
+				t.Errorf("%s: >= %d: %d seconds; script %d", label, s.AtLeast, s.Seconds, n)
+			}
+		}
+	}
 }

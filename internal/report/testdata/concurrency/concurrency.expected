@@ -1,0 +1,34 @@
+seconds analysed: 261 (0.1 h), /api requests 585, 429s 59
+
+non-campus /api (cap api_conc 24)
+  p50=14 p90=17 p99=20 max=20
+  seconds with >=  2 in flight:    258 (98.9%)
+  seconds with >=  4 in flight:    254 (97.3%)
+  seconds with >=  6 in flight:    250 (95.8%)
+  seconds with >=  8 in flight:    245 (93.9%)
+  seconds with >= 12 in flight:    196 (75.1%)
+  seconds with >= 16 in flight:     71 (27.2%)
+  seconds with >= 20 in flight:      3 (1.1%)
+  seconds with >= 24 in flight:      0 (0.0%)
+
+non-campus /api/iiif/ (cap iiif_conc 6)
+  p50=4 p90=7 p99=8 max=9
+  seconds with >=  2 in flight:    226 (86.6%)
+  seconds with >=  4 in flight:    148 (56.7%)
+  seconds with >=  6 in flight:     48 (18.4%)
+  seconds with >=  8 in flight:     12 (4.6%)
+  seconds with >= 12 in flight:      0 (0.0%)
+  seconds with >= 16 in flight:      0 (0.0%)
+  seconds with >= 20 in flight:      0 (0.0%)
+  seconds with >= 24 in flight:      0 (0.0%)
+
+campus /api (exempt, for scale)
+  p50=0 p90=0 p99=0 max=0
+  seconds with >=  2 in flight:      0 (0.0%)
+  seconds with >=  4 in flight:      0 (0.0%)
+  seconds with >=  6 in flight:      0 (0.0%)
+  seconds with >=  8 in flight:      0 (0.0%)
+  seconds with >= 12 in flight:      0 (0.0%)
+  seconds with >= 16 in flight:      0 (0.0%)
+  seconds with >= 20 in flight:      0 (0.0%)
+  seconds with >= 24 in flight:      0 (0.0%)

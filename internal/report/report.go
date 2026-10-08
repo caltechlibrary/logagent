@@ -88,6 +88,7 @@ type Aggregator struct {
 	fams     map[string]*famAgg
 	internal map[string]int
 	seenInt  bool
+	sec      sections
 }
 
 // New returns an Aggregator for the options.
@@ -106,6 +107,7 @@ func New(o Options) *Aggregator {
 	return &Aggregator{
 		o: o, min: min, days: map[string]*dayAgg{}, hours: map[string]*hourAgg{}, status: map[int]int{},
 		errs: map[string]*ErrorDay{}, classes: map[string]*classAgg{}, fams: map[string]*famAgg{}, internal: map[string]int{},
+		sec: newSections(),
 	}
 }
 
@@ -127,6 +129,7 @@ func (a *Aggregator) AddInternal(r netip.Prefix) {
 //
 //	a.Add(ev)
 func (a *Aggregator) Add(ev event.Event) {
+	a.addSections(ev)
 	a.events++
 	if ev.Timed {
 		a.timed++
@@ -284,6 +287,12 @@ type Report struct {
 	Errors   []ErrorDay    `json:"errors"`
 	Classes  []ClassRow    `json:"classes"`
 	Families []FamilyRow   `json:"families"`
+	// Sections 6 to 10.
+	Cohorts     Cohorts     `json:"cohorts"`
+	Concurrency Concurrency `json:"concurrency"`
+	Cache       []CacheRow  `json:"cache"`
+	Limited     Limited     `json:"limited"`
+	Agents      []AgentRow  `json:"agents"`
 }
 
 func per(total float64, n int) float64 {
@@ -308,6 +317,13 @@ func (a *Aggregator) Report(st logread.Stats) *Report {
 		Lines: st.Lines, Events: a.events, Skipped: st.Skipped, Outside: st.Outside,
 		Internal: []InternalRow{}, Notes: []string{}, Days: []DayRow{}, Hours: []HourRow{},
 		Status: []StatusRow{}, Errors: []ErrorDay{}, Classes: []ClassRow{}, Families: []FamilyRow{},
+	}
+	r.Cohorts, r.Concurrency, r.Cache, r.Limited, r.Agents = a.cohorts(), a.concurrency(), a.cacheRows(), a.limited(), a.agents()
+	if a.events > 0 && !a.sec.anyCache {
+		r.Notes = append(r.Notes, "the log records no cache status ($upstream_cache_status), so section 8 is empty")
+	}
+	if a.sec.agentsOver {
+		r.Notes = append(r.Notes, fmt.Sprintf("more than %d distinct self-described agents; the rest are not listed", agentCap))
 	}
 	counted := map[string]bool{}
 	for _, p := range a.o.Internal {
@@ -554,6 +570,7 @@ func (r *Report) WriteText(w io.Writer, top int) error {
 		fmt.Fprintf(&b, "  %-30s %9d %6.1f%% %12.1f %8.3f %6.1f%%\n", f.Family, f.Requests, f.APIShare*100, f.UpstreamSeconds, f.PerRequest, f.LimitedRate*100)
 	}
 	more(n, len(r.Families))
+	writeSections(&b, r, limit, more)
 	_, err := io.WriteString(w, b.String())
 	return err
 }

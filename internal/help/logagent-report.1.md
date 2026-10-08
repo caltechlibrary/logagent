@@ -47,6 +47,31 @@ configuration.
    429, for each family of client: a declared automated agent, or undeclared
    traffic by claimed platform.
 
+6. UNDECLARED COHORTS: traffic that does not name itself, by the platform it
+   claims, whether it sent `sec-ch-ua` client hints, and country, with requests,
+   distinct clients and upstream seconds. A cohort of fewer than 10 distinct
+   clients is folded into one row. Distinct clients are counted from a keyed hash
+   of the address that exists only for the run, up to 100,000 per cohort.
+7. CONCURRENCY: how many API requests were in flight each second, for all API
+   classes and for each, as percentiles and the share of seconds at 2, 4, 6, 8, 12,
+   16, 20 and 24 or more. A request is in flight from the second it began (its end
+   time less its request time) to the second it ended, and 429s, which are refused
+   before they hold a slot, are not counted. Every second between the first start
+   and the last end counts, idle ones included. Requests from internal ranges are
+   not in this section.
+8. CACHE: for each path class whose requests have a cache status, how many were
+   `HIT`, `MISS`, `BYPASS` and other, and the hit rate. A cache that is installed
+   and never hits looks fine in every other section.
+9. THE 429s: by family, path class, hour of the day (UTC), country and whether
+   `sec-ch-ua` was sent. Families and countries with fewer than 10 distinct
+   clients are folded.
+10. SELF-DESCRIBED AGENTS NOT IN THE DECLARED LIST: user agents of undeclared
+    traffic that call themselves a bot, crawler, spider or agent, or give a contact
+    address or `+http` page, by count. This is how a new agent is found before
+    anyone names it. The text is chosen by the client: it is printed quoted and cut
+    to 80 bytes, any contact address is reduced to its domain (`mailto:<email>@example.org`),
+    and nothing in it is verified or acted on.
+
 Seconds per request count only requests the log gave a request time. A log that
 was written with another format earlier in the window has requests with no time;
 the report says how many.

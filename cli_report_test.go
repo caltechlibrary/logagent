@@ -102,14 +102,15 @@ func jsonReport(t *testing.T, args ...string) reportJSON {
 	return r
 }
 
-func TestReportPrintsTheFiveSectionsAndNothingAPatronDid(t *testing.T) {
+func TestReportPrintsTheTenSectionsAndNothingAPatronDid(t *testing.T) {
 	at(t)
 	cfg, logPath := reportSetup(t, reportLines(), "", "")
 	code, out, errOut := run("report", "--config", cfg, "--day", "2026-10-07")
 	if code != ExitOK || errOut != "" {
 		t.Fatalf("exit %d, stderr %q\n%s", code, errOut, out)
 	}
-	for _, want := range []string{"1. SOURCES", "2. REQUESTS PER DAY", "3. STATUS", "4. BY PATH CLASS", "5. BY FAMILY", logPath} {
+	for _, want := range []string{"1. SOURCES", "2. REQUESTS PER DAY", "3. STATUS", "4. BY PATH CLASS", "5. BY FAMILY",
+		"6. UNDECLARED COHORTS", "7. CONCURRENCY", "8. CACHE", "9. THE 429s", "10. SELF-DESCRIBED AGENTS", logPath} {
 		if !strings.Contains(out, want) {
 			t.Errorf("stdout lacks %q:\n%s", want, out)
 		}

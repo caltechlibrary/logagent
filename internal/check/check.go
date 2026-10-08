@@ -420,6 +420,7 @@ func Run(in Input) (*Report, error) {
 		}
 	}
 
+	checkCaches(tree, formats, add)
 	checkErrorLogs(tree, servers, add)
 	if in.ErrorSampler != nil {
 		r.sampleErrorLogs(tree, in.ErrorSampler, add)
@@ -440,6 +441,64 @@ func Run(in Input) (*Report, error) {
 		}
 	}
 	return r, nil
+}
+
+// checkCaches looks at every location that uses proxy_cache. It warns when the
+// cache is bypassed or not stored on a cookie, because a site that gives every
+// anonymous visitor a session cookie then caches almost nothing (CaltechAUTHORS,
+// 2026-10-08: two hits in 31 hours), and when no access log in force records
+// $upstream_cache_status, because a cache that never hits looks fine in every
+// other view of the log.
+func checkCaches(tree []*nginxconf.Directive, formats map[string]*nginxconf.Directive, add func(Finding)) {
+	for _, loc := range nginxconf.Locations(tree) {
+		pc := nginxconf.Effective(loc, "proxy_cache")
+		if len(pc) == 0 || len(pc[0].Args) == 0 || pc[0].Args[0] == "off" {
+			continue
+		}
+		where := "location " + strings.Join(loc.Args, " ")
+		for _, name := range []string{"proxy_cache_bypass", "proxy_no_cache"} {
+			for _, d := range nginxconf.Effective(loc, name) {
+				if !mentionsCookie(d.Args) {
+					continue
+				}
+				add(Finding{Code: "cache-bypass-on-cookie", Severity: Warn, At: placeOf(d),
+					Message:    fmt.Sprintf("%s caches, but %s names a cookie, so a request that carries any cookie skips the cache; sites that give every anonymous visitor a session cookie then cache almost nothing", where, name),
+					Suggestion: "Do not key the cache on a cookie. Bypass on an Authorization header or a token argument, and, where the application marks authenticated responses with a header (Invenio sends X-User-ID), add $upstream_http_x_user_id to proxy_no_cache so an authenticated response is never stored. Confirm with a logged-in request that the header is sent on this path before relying on it."})
+			}
+		}
+		var logs, with int
+		for _, al := range nginxconf.Effective(loc, "access_log") {
+			if isOff(al) || len(al.Args) == 0 {
+				continue
+			}
+			logs++
+			format := ""
+			if len(al.Args) > 1 {
+				if d, ok := formats[al.Args[1]]; ok {
+					format = strings.Join(d.Args[1:], " ")
+				}
+			}
+			if hasVariable(format, "$upstream_cache_status") {
+				with++
+			}
+		}
+		if logs > 0 && with == 0 {
+			add(Finding{Code: "cache-status-not-logged", Severity: Warn, At: placeOf(loc),
+				Message:    fmt.Sprintf("%s caches, but no access log in force there records $upstream_cache_status, so hits, misses and bypasses cannot be counted", where),
+				Suggestion: "Add cache=\"$upstream_cache_status\" to the log_format. Without it a cache that never hits looks the same as one that works."})
+		}
+	}
+}
+
+// mentionsCookie reports whether any argument of a cache condition is a cookie
+// variable, $http_cookie or $cookie_NAME.
+func mentionsCookie(args []string) bool {
+	for _, a := range args {
+		if hasVariable(a, "$http_cookie") || strings.HasPrefix(a, "$cookie_") {
+			return true
+		}
+	}
+	return false
 }
 
 // checkLogrotate compares how long logrotate keeps each configured log with

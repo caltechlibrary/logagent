@@ -143,6 +143,21 @@ access-log-off
 access-log-default
 : a server sets no `access_log`, so nginx uses its compiled-in default.
 
+cache-bypass-on-cookie
+: a location that uses `proxy_cache` names a cookie (`$http_cookie` or
+  `$cookie_NAME`) in `proxy_cache_bypass` or `proxy_no_cache`. A site that gives
+  every anonymous visitor a session cookie then caches almost nothing: on
+  CaltechAUTHORS the IIIF cache had 2 hits in 31 hours. The suggestion is to bypass
+  on an Authorization header or a token argument and, where the application marks
+  authenticated responses with a header (Invenio sends `X-User-ID`), to add
+  `$upstream_http_x_user_id` to `proxy_no_cache`. Confirm the header is sent on that
+  path first (a warning).
+
+cache-status-not-logged
+: a location that uses `proxy_cache` has no access log in force that records
+  `$upstream_cache_status`, so hits, misses and bypasses cannot be counted (a
+  warning).
+
 log-not-found
 : a log listed in the host configuration is written by no `access_log`.
 

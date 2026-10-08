@@ -37,6 +37,27 @@ func WriteText(w io.Writer, r *Report) error {
 		}
 		b.WriteString("\n")
 	}
+	for _, e := range r.ErrorLogs {
+		fmt.Fprintf(&b, "ERROR LOG %s (%d lines, %s to %s)\n", e.Path, e.Lines, e.First, e.Last)
+		for _, c := range e.Categories {
+			fmt.Fprintf(&b, "  %s: %d", c.Name, c.Count)
+			if len(c.Zones) > 0 {
+				parts := make([]string, len(c.Zones))
+				for i, z := range c.Zones {
+					parts[i] = fmt.Sprintf("%s %d", z.Zone, z.Count)
+				}
+				fmt.Fprintf(&b, " (%s)", strings.Join(parts, ", "))
+			}
+			b.WriteString("\n")
+		}
+		var levels []string
+		for _, level := range []string{"emerg", "alert", "crit", "error", "warn", "notice", "info", "debug"} {
+			if n := e.Levels[level]; n > 0 {
+				levels = append(levels, fmt.Sprintf("%s %d", level, n))
+			}
+		}
+		fmt.Fprintf(&b, "  levels: %s\n\n", strings.Join(levels, ", "))
+	}
 	findings := append([]Finding(nil), r.Findings...)
 	sort.SliceStable(findings, func(i, j int) bool { return severityRank[findings[i].Severity] < severityRank[findings[j].Severity] })
 	counts := map[string]int{}

@@ -14,10 +14,12 @@ import (
 	"fmt"
 	"math"
 	"net/netip"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/caltechlibrary/logagent/internal/config"
+	"github.com/caltechlibrary/logagent/internal/errorlog"
 	"github.com/caltechlibrary/logagent/internal/fields"
 	"github.com/caltechlibrary/logagent/internal/logrotate"
 	"github.com/caltechlibrary/logagent/internal/nginxconf"
@@ -87,6 +89,10 @@ type Input struct {
 	RangesErr error
 	// Now is the time to judge ages by; zero means the real clock.
 	Now time.Time
+	// ErrorSampler, if set, is asked for the counts of each error log file the
+	// nginx configuration names. A result with nothing in it means the log is
+	// not on this machine.
+	ErrorSampler func(path string) errorlog.Counts
 	// Logrotate holds the parsed logrotate files: the first governs the logs,
 	// the others supply default options only. Empty means no retention check.
 	Logrotate []*logrotate.File
@@ -133,8 +139,37 @@ type Finding struct {
 
 // Report is the result of a check.
 type Report struct {
-	Logs     []LogReport
-	Findings []Finding
+	Logs      []LogReport
+	ErrorLogs []ErrorLogReport
+	Findings  []Finding
+}
+
+// ErrorLogReport is what an error log held, as counts.
+type ErrorLogReport struct {
+	Path    string `json:"path"`
+	Lines   int    `json:"lines"`
+	Skipped int    `json:"skipped"`
+	First   string `json:"first"`
+	Last    string `json:"last"`
+	// Levels counts lines by level.
+	Levels map[string]int `json:"levels"`
+	// Categories lists the categories that have lines, in the table's order
+	// and then "other".
+	Categories []CategoryCount `json:"categories"`
+}
+
+// CategoryCount is the number of lines in one category and, for limit_conn and
+// limit_req, in each zone, the busiest first.
+type CategoryCount struct {
+	Name  string      `json:"name"`
+	Count int         `json:"count"`
+	Zones []ZoneCount `json:"zones"`
+}
+
+// ZoneCount is the number of lines for one zone.
+type ZoneCount struct {
+	Zone  string `json:"zone"`
+	Count int    `json:"count"`
 }
 
 // ExitCode returns the exit status for the report: 1 if any finding is a gap,
@@ -161,10 +196,14 @@ func (r *Report) ExitCode() int {
 //	data, err := json.Marshal(report)
 func (r *Report) MarshalJSON() ([]byte, error) {
 	out := struct {
-		Logs       []LogReport `json:"logs"`
-		Findings   []Finding   `json:"findings"`
-		ExitStatus int         `json:"exit_status"`
-	}{r.Logs, r.Findings, r.ExitCode()}
+		Logs       []LogReport      `json:"logs"`
+		ErrorLogs  []ErrorLogReport `json:"error_logs"`
+		Findings   []Finding        `json:"findings"`
+		ExitStatus int              `json:"exit_status"`
+	}{r.Logs, r.ErrorLogs, r.Findings, r.ExitCode()}
+	if out.ErrorLogs == nil {
+		out.ErrorLogs = []ErrorLogReport{}
+	}
 	if out.Logs == nil {
 		out.Logs = []LogReport{}
 	}
@@ -382,6 +421,9 @@ func Run(in Input) (*Report, error) {
 	}
 
 	checkErrorLogs(tree, servers, add)
+	if in.ErrorSampler != nil {
+		r.sampleErrorLogs(tree, in.ErrorSampler, add)
+	}
 	if len(in.Logrotate) > 0 || in.LogrotateErr != nil {
 		checkLogrotate(c, in, errorLogPaths(tree), add)
 	}
@@ -941,4 +983,93 @@ func checkErrorLogs(tree, servers []*nginxconf.Directive, add func(Finding)) {
 	}
 	disabled.flush(add, "servers")
 	missing.flush(add, "servers")
+}
+
+// sampleErrorLogs asks for the counts of each error log file and adds them to
+// the report, with a warning for critical lines and notes for what cannot be
+// read or does not look like an error log.
+func (r *Report) sampleErrorLogs(tree []*nginxconf.Directive, sampler func(string) errorlog.Counts, add func(Finding)) {
+	for _, path := range errorLogPaths(tree) {
+		var at Place
+		for _, d := range errorLogDirectives(tree) {
+			if p, ok := errorLogFile(d); ok && p == path {
+				at = placeOf(d)
+				break
+			}
+		}
+		c := sampler(path)
+		switch {
+		case c.Err != "":
+			add(Finding{Code: "error-log-unavailable", Severity: Note, Log: path, At: at,
+				Message: fmt.Sprintf("could not count the lines of %s: %s", path, c.Err)})
+			continue
+		case c.Lines == 0 && c.Skipped == 0:
+			continue
+		case c.Skipped > c.Lines:
+			add(Finding{Code: "error-log-mismatch", Severity: Warn, Log: path, At: at,
+				Message: fmt.Sprintf("%d of %d sampled lines in %s do not look like nginx error log lines, so the counts are not used",
+					c.Skipped, c.Skipped+c.Lines, path),
+				Suggestion: "Check that this file is the error log the configuration writes, and not another program's."})
+			continue
+		}
+		r.ErrorLogs = append(r.ErrorLogs, errorLogReport(path, c))
+		var parts []string
+		for _, level := range []string{"crit", "alert", "emerg"} {
+			if n := c.Levels[level]; n > 0 {
+				parts = append(parts, fmt.Sprintf("%d %s", n, level))
+			}
+		}
+		if len(parts) > 0 {
+			add(Finding{Code: "error-log-critical", Severity: Warn, Log: path, At: at,
+				Message: fmt.Sprintf("%s lines in the last %d lines of %s (%s to %s)",
+					strings.Join(parts, ", "), c.Lines, path, c.First, c.Last),
+				Suggestion: "Read those lines on the host: they are the ones nginx logs when it is failing, not when it is busy."})
+		}
+	}
+}
+
+// errorLogDirectives returns every error_log directive in the tree in document order.
+func errorLogDirectives(tree []*nginxconf.Directive) []*nginxconf.Directive {
+	var out []*nginxconf.Directive
+	nginxconf.Walk(tree, func(d *nginxconf.Directive) {
+		if d.Name == "error_log" {
+			out = append(out, d)
+		}
+	})
+	return out
+}
+
+func errorLogReport(path string, c errorlog.Counts) ErrorLogReport {
+	e := ErrorLogReport{Path: path, Lines: c.Lines, Skipped: c.Skipped, First: c.First, Last: c.Last, Levels: c.Levels, Categories: []CategoryCount{}}
+	order := errorlog.Default().Names()
+	known := map[string]bool{}
+	for _, n := range order {
+		known[n] = true
+	}
+	var extra []string
+	for n := range c.Categories {
+		if !known[n] && n != errorlog.Other {
+			extra = append(extra, n)
+		}
+	}
+	sort.Strings(extra)
+	order = append(append(order, extra...), errorlog.Other)
+	for _, name := range order {
+		n := c.Categories[name]
+		if n == 0 {
+			continue
+		}
+		cc := CategoryCount{Name: name, Count: n, Zones: []ZoneCount{}}
+		for zone, count := range c.Zones[name] {
+			cc.Zones = append(cc.Zones, ZoneCount{Zone: zone, Count: count})
+		}
+		sort.Slice(cc.Zones, func(i, j int) bool {
+			if cc.Zones[i].Count != cc.Zones[j].Count {
+				return cc.Zones[i].Count > cc.Zones[j].Count
+			}
+			return cc.Zones[i].Zone < cc.Zones[j].Zone
+		})
+		e.Categories = append(e.Categories, cc)
+	}
+	return e
 }

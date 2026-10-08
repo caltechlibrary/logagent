@@ -6,17 +6,15 @@ package sample
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
-	"os"
 	"regexp"
 	"strings"
 
 	"github.com/caltechlibrary/logagent/internal/check"
 	"github.com/caltechlibrary/logagent/internal/fields"
+	"github.com/caltechlibrary/logagent/internal/tail"
 )
 
 // ErrFormat means a log_format cannot be turned into a reader: it has no
@@ -209,8 +207,6 @@ func Count(r io.Reader, p *Parser, tab *fields.Table) check.Sample {
 	return s
 }
 
-const block = 64 * 1024
-
 // File counts over the last n lines of the log at path, reading from the end so
 // a large log is not read through.
 //
@@ -223,41 +219,9 @@ const block = 64 * 1024
 //
 //	s, err := sample.File("/var/log/nginx/access.log", 10000, p, fields.Default())
 func File(path string, n int, p *Parser, tab *fields.Table) (check.Sample, error) {
-	if n < 1 {
-		return check.Sample{}, fmt.Errorf("sample size must be at least 1 (got %d)", n)
-	}
-	f, err := os.Open(path)
+	text, err := tail.Last(path, n)
 	if err != nil {
 		return check.Sample{}, err
 	}
-	defer f.Close()
-	info, err := f.Stat()
-	if err != nil {
-		return check.Sample{}, err
-	}
-	if info.IsDir() {
-		return check.Sample{}, &fs.PathError{Op: "read", Path: path, Err: errors.New("is a directory")}
-	}
-	var buf []byte
-	pos := info.Size()
-	for pos > 0 && bytes.Count(buf, []byte("\n")) <= n {
-		size := int64(block)
-		if pos < size {
-			size = pos
-		}
-		pos -= size
-		chunk := make([]byte, size)
-		if _, err := f.ReadAt(chunk, pos); err != nil && err != io.EOF {
-			return check.Sample{}, err
-		}
-		buf = append(chunk, buf...)
-	}
-	lines := strings.Split(strings.TrimRight(string(buf), "\n"), "\n")
-	if pos > 0 && len(lines) > 0 {
-		lines = lines[1:] // the first line may have been cut by the block boundary
-	}
-	if len(lines) > n {
-		lines = lines[len(lines)-n:]
-	}
-	return Count(strings.NewReader(strings.Join(lines, "\n")), p, tab), nil
+	return Count(strings.NewReader(text), p, tab), nil
 }

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "categories": [
+    {"name": "limit-conn", "description": "A request was rejected by a limit_conn zone.", "pattern": "^limiting connections by zone \"([^\"]+)\"", "zone": true},
+    {"name": "limit-conn-dry-run", "description": "A request would have been rejected by a limit_conn zone in dry-run mode.", "pattern": "^limiting connections, dry run, by zone \"([^\"]+)\"", "zone": true},
+    {"name": "limit-req", "description": "A request was rejected by a limit_req zone.", "pattern": "^limiting requests, excess: [0-9.]+ by zone \"([^\"]+)\"", "zone": true},
+    {"name": "limit-req-dry-run", "description": "A request would have been rejected by a limit_req zone in dry-run mode.", "pattern": "^limiting requests, dry run, excess: [0-9.]+ by zone \"([^\"]+)\"", "zone": true},
+    {"name": "limit-req-delay", "description": "A request was delayed by a limit_req zone.", "pattern": "^delaying request, excess: [0-9.]+, by zone \"([^\"]+)\"", "zone": true},
+    {"name": "upstream-timeout", "description": "The upstream did not answer in time.", "pattern": "^upstream timed out"},
+    {"name": "upstream-refused", "description": "The upstream refused the connection.", "pattern": "^connect\\(\\) failed \\(111: Connection refused\\) while connecting to upstream"},
+    {"name": "upstream-closed", "description": "The upstream closed the connection before answering.", "pattern": "^upstream prematurely closed connection"},
+    {"name": "upstream-reset", "description": "The upstream reset the connection.", "pattern": "^recv\\(\\) failed \\(104: Connection reset by peer\\) while reading (?:response header )?from upstream"},
+    {"name": "upstream-no-live", "description": "No upstream server was available.", "pattern": "^no live upstreams"},
+    {"name": "body-too-large", "description": "A request body was larger than client_max_body_size.", "pattern": "^client intended to send too large body"},
+    {"name": "buffered-response-to-disk", "description": "An upstream response was too large for its buffers and went to a temporary file.", "pattern": "^an upstream response is buffered to a temporary file"},
+    {"name": "buffered-request-to-disk", "description": "A request body was too large for its buffer and went to a temporary file.", "pattern": "^a client request body is buffered to a temporary file"},
+    {"name": "tls-handshake", "description": "A TLS handshake with a client failed.", "pattern": "^SSL_do_handshake\\(\\) failed"},
+    {"name": "file-not-found", "description": "A file nginx was asked to serve does not exist.", "pattern": "^open\\(\\) \".*\" failed \\(2: No such file or directory\\)"},
+    {"name": "worker-crash", "description": "A worker process exited on a signal.", "pattern": "^worker process [0-9]+ exited on signal"}
+  ]
+}

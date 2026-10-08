@@ -17,6 +17,7 @@ import (
 
 	"github.com/caltechlibrary/logagent/internal/check"
 	"github.com/caltechlibrary/logagent/internal/config"
+	"github.com/caltechlibrary/logagent/internal/errorlog"
 	"github.com/caltechlibrary/logagent/internal/fields"
 	"github.com/caltechlibrary/logagent/internal/help"
 	"github.com/caltechlibrary/logagent/internal/logrotate"
@@ -217,6 +218,7 @@ func buildReport(opt checkOptions) (*check.Report, error) {
 	}
 	if opt.sample > 0 {
 		in.Sampler = logSampler(opt.sample)
+		in.ErrorSampler = errorLogSampler(opt.sample)
 	}
 	if cfg.Retention.Logrotate != "" {
 		in.Logrotate, in.LogrotateErr = readLogrotate(cfg.Retention.Logrotate)
@@ -258,6 +260,22 @@ func readLogrotate(file string) ([]*logrotate.File, error) {
 		}
 	}
 	return files, nil
+}
+
+// errorLogSampler returns the function the check calls to count the lines of an
+// error log. A log that is not on this machine yields empty counts; any other
+// failure is passed on as an error message.
+func errorLogSampler(lines int) func(path string) errorlog.Counts {
+	return func(path string) errorlog.Counts {
+		c, err := errorlog.File(path, lines, errorlog.Default())
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+			return errorlog.Counts{}
+		case err != nil:
+			return errorlog.Counts{Err: err.Error()}
+		}
+		return c
+	}
 }
 
 // logSampler returns the function the check calls to count fields in a log. A

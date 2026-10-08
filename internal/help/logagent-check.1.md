@@ -44,6 +44,19 @@ how many lines held a value for each field. It keeps only the counts. No address
 query string or user agent is stored or printed, so the report can be pasted into
 an issue. Lines that do not match the format are counted as skipped.
 
+# READING THE ERROR LOG
+
+Each error log file the nginx configuration names with `error_log` is read the
+same way, from the end, and counted by kind of message and by level, with the
+time the lines cover. The kinds include `limit-conn` and `limit-req` rejections
+(counted by zone name, which is configuration), `upstream-timeout`,
+`upstream-refused`, `upstream-closed`, `upstream-reset`, `upstream-no-live`,
+`body-too-large`, the two `buffered-...-to-disk` kinds, `tls-handshake`,
+`file-not-found` and `worker-crash`. A line that fits none is counted as `other`
+at its level. Nothing else of a line is kept or shown: no address, request, path
+or message text. The counts never change the exit status. `--sample 0` turns this
+off with the access log counts.
+
 # LOG RETENTION
 
 When the host configuration names a logrotate file in `retention.logrotate`,
@@ -73,7 +86,8 @@ followed. A file that is not on this machine is skipped without comment.
   `config.dump` and `config.command`
 
 -s, --sample LINES
-: count fields in the last LINES lines of each access log (default 10000). `0`
+: count fields in the last LINES lines of each access log, and the kinds of
+  message in each error log (default 10000). `0`
   turns the counts off. A log that is not on this machine, as when a dump was
   copied from a host, is skipped without comment
 
@@ -153,6 +167,17 @@ error-log-level-hides-limits
   does not keep, so nginx drops them silently (a warning). The default level for
   both is `error`; `limit_conn_log_level warn` with an `error_log` left at its
   default is the usual cause. The finding names the zones and the context.
+
+error-log-critical
+: the error log has `crit`, `alert` or `emerg` lines in the lines read (a
+  warning). They are what nginx writes when it is failing and not when it is busy.
+
+error-log-mismatch
+: most lines read from an error log do not look like nginx error log lines, so
+  the counts are not used (a warning).
+
+error-log-unavailable
+: an error log could not be read (a note).
 
 error-log-disabled
 : the effective `error_log` is `/dev/null`, so nginx errors, including upstream

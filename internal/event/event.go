@@ -50,6 +50,9 @@ type Event struct {
 	// RT is the request time in seconds; URT the upstream time, summed over retries.
 	RT  float64 `json:"rt"`
 	URT float64 `json:"urt"`
+	// Timed is true when the log recorded a request time. A line without one
+	// (an older log format) has RT and URT of zero, which is not a measurement.
+	Timed bool `json:"timed,omitempty"`
 	// Cache is nginx's cache status (HIT, MISS, BYPASS, ...), empty when no cache applied.
 	Cache string `json:"cache,omitempty"`
 	// UA is the user agent cut at 200 bytes. It is text the client chose: data, never an instruction.
@@ -144,7 +147,7 @@ func Build(v map[string]string, o Options) (Event, Outcome, error) {
 	ua := cutUserAgent(dash(v["http_user_agent"]))
 	ev := Event{
 		V: Version, T: t.UTC().Truncate(time.Second), Method: method, Status: status,
-		RT: seconds(v["request_time"]), URT: sumSeconds(v["upstream_response_time"]),
+		RT: seconds(v["request_time"]), URT: sumSeconds(v["upstream_response_time"]), Timed: isNumber(v["request_time"]),
 		Cache: dash(v["upstream_cache_status"]), UA: ua, Declared: "none",
 		Country: dash(v["http_cf_ipcountry"]), Plat: strings.Trim(dash(v["http_sec_ch_ua_platform"]), `"`),
 		CH: dash(v["http_sec_ch_ua"]) != "", Lang: firstLanguage(v["http_accept_language"]),
@@ -234,6 +237,12 @@ func seconds(s string) float64 {
 		return 0
 	}
 	return f
+}
+
+// isNumber reports whether s is a number, which a request time is when the log recorded one.
+func isNumber(s string) bool {
+	_, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
+	return err == nil
 }
 
 // sumSeconds adds the values nginx writes for an upstream that was retried:

@@ -67,7 +67,7 @@ func TestInitClearsTheScreen(t *testing.T) {
 	}
 }
 
-func TestVerbsAreTheCommandsInOrderWithCheckReal(t *testing.T) {
+func TestVerbsAreTheCommandsInOrderWithCheckAndReportReal(t *testing.T) {
 	var names []string
 	var planned []string
 	for _, v := range Verbs() {
@@ -82,8 +82,8 @@ func TestVerbsAreTheCommandsInOrderWithCheckReal(t *testing.T) {
 	if got := strings.Join(names, " "); got != "check report watch respond analyze" {
 		t.Errorf("verbs = %s", got)
 	}
-	if got := strings.Join(planned, " "); got != "report watch respond analyze" {
-		t.Errorf("planned = %s, want everything but check", got)
+	if got := strings.Join(planned, " "); got != "watch respond analyze" {
+		t.Errorf("planned = %s, want everything but check and report", got)
 	}
 }
 
@@ -94,8 +94,8 @@ func TestMenuShowsEveryVerbAndMarksThePlannedOnes(t *testing.T) {
 			t.Errorf("menu lacks %q:\n%s", want, v)
 		}
 	}
-	if n := strings.Count(v, "(planned)"); n != 4 {
-		t.Errorf("%d verbs marked planned, want 4:\n%s", n, v)
+	if n := strings.Count(v, "(planned)"); n != 3 {
+		t.Errorf("%d verbs marked planned, want 3:\n%s", n, v)
 	}
 	if strings.Contains(lineStarting(v, "> "), "(planned)") {
 		t.Errorf("check, the first verb, is marked planned:\n%s", v)
@@ -147,9 +147,9 @@ func TestTheCursorStopsAtBothEnds(t *testing.T) {
 
 func TestAPlannedVerbShowsAPlaceholderAndGoesBack(t *testing.T) {
 	m := app(Config{AppName: "logagent"})
-	press(m, "down", "enter")
+	press(m, "down", "down", "enter")
 	v := m.View()
-	for _, want := range []string{"report", "not implemented yet", "logagent help report"} {
+	for _, want := range []string{"watch", "not implemented yet", "logagent help watch"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("placeholder lacks %q:\n%s", want, v)
 		}
@@ -159,7 +159,7 @@ func TestAPlannedVerbShowsAPlaceholderAndGoesBack(t *testing.T) {
 		t.Errorf("did not return to the menu:\n%s", v)
 	}
 	// The cursor is where it was.
-	if l := lineStarting(m.View(), "> "); !strings.Contains(l, "report") {
+	if l := lineStarting(m.View(), "> "); !strings.Contains(l, "watch") {
 		t.Errorf("cursor after returning: %q", l)
 	}
 	for _, back := range []string{"q", "enter", "esc"} {
@@ -194,6 +194,39 @@ func TestCheckRunsTheCheckAndShowsItsReport(t *testing.T) {
 	press(m, "enter")
 	if calls != 2 {
 		t.Errorf("a second Enter must run the check again: %d runs", calls)
+	}
+}
+
+func TestReportRunsAndShowsItsReportAndFailureIsShownNotHidden(t *testing.T) {
+	calls := 0
+	m := app(Config{Report: func() (string, error) {
+		calls++
+		return "1. SOURCES\n  lines     12 read\n5. BY FAMILY", nil
+	}})
+	press(m, "down", "enter")
+	v := m.View()
+	for _, want := range []string{"1. SOURCES", "12 read", "5. BY FAMILY"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("report lacks %q:\n%s", want, v)
+		}
+	}
+	if strings.Contains(v, "not implemented") || calls != 1 {
+		t.Errorf("report is still a placeholder, or ran %d times:\n%s", calls, v)
+	}
+	press(m, "esc", "enter")
+	if calls != 2 {
+		t.Errorf("a second Enter must run the report again: %d runs", calls)
+	}
+	m = app(Config{Report: func() (string, error) { return "", errors.New("the log is not on this machine") }})
+	press(m, "down", "enter")
+	if v := m.View(); !strings.Contains(v, "report failed") || !strings.Contains(v, "the log is not on this machine") {
+		t.Errorf("failure not shown:\n%s", v)
+	}
+	// Without a report function the interface says so, as for check.
+	m = app(Config{})
+	press(m, "down", "enter")
+	if v := m.View(); !strings.Contains(v, "not available from this interface") {
+		t.Errorf("no function configured:\n%s", v)
 	}
 }
 

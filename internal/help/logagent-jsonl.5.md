@@ -42,6 +42,11 @@ rt, urt
 : the request time and the upstream time, in seconds. When nginx retried an
   upstream it logs several values and `urt` is their sum.
 
+timed
+: true when the log recorded a request time. A line from an older log format
+  has no time, so `rt` and `urt` are 0 there; that is not a measurement, and a
+  report divides by the timed requests only.
+
 cache
 : nginx's cache status (`HIT`, `MISS`, `BYPASS`, `EXPIRED`, `STALE`,
   `UPDATING`), left out when no cache applied.

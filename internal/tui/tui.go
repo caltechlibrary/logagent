@@ -46,7 +46,7 @@ type Verb struct {
 func Verbs() []Verb {
 	return []Verb{
 		{Name: "check", Description: "validate that the web server logs the data detection needs"},
-		{Name: "report", Description: "summarize traffic and what the tiers saw", Planned: true},
+		{Name: "report", Description: "summarize traffic and what the tiers saw"},
 		{Name: "watch", Description: "detect bursts and automated traffic as they happen", Planned: true},
 		{Name: "respond", Description: "generate, and with approval apply, a response", Planned: true},
 		{Name: "analyze", Description: "review aggregated history over weeks and months", Planned: true},
@@ -61,6 +61,9 @@ type Config struct {
 	// Check runs the check and returns the report as text. A nil Check means
 	// the command is not available from this interface.
 	Check func() (string, error)
+	// Report runs the traffic report for the default window and returns it as
+	// text. A nil Report means the command is not available from this interface.
+	Report func() (string, error)
 	// ColorEnabled turns on the reverse-video cursor row. It is false for
 	// NO_COLOR and for output that is not a terminal.
 	ColorEnabled bool
@@ -186,17 +189,20 @@ func (m *App) choose(v Verb) {
 		m.screen = placeholderScreen
 		return
 	}
+	var run func() (string, error)
+	switch v.Name {
+	case "check":
+		run = m.cfg.Check
+	case "report":
+		run = m.cfg.Report
+	}
 	var text string
-	switch {
-	case v.Name == "check" && m.cfg.Check != nil:
-		out, err := m.cfg.Check()
-		if err != nil {
-			text = fmt.Sprintf("check failed: %v", err)
-		} else {
-			text = out
-		}
-	default:
+	if run == nil {
 		text = v.Name + " is not available from this interface."
+	} else if out, err := run(); err != nil {
+		text = fmt.Sprintf("%s failed: %v", v.Name, err)
+	} else {
+		text = out
 	}
 	w, h := m.size()
 	m.report.Width, m.report.Height = w, h-2

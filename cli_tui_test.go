@@ -108,3 +108,32 @@ func TestTheInterfaceCheckSamplesTheLogToo(t *testing.T) {
 		t.Errorf("%v\n%s", err, text)
 	}
 }
+
+func TestTheInterfaceReportUsesTheHostConfigurationAndShowsNothingAPatronDid(t *testing.T) {
+	at(t)
+	got := stubTerminal(t, true, nil)
+	run()
+	if (*got)[0].Report == nil {
+		t.Fatal("the interface has no Report function")
+	}
+	report := (*got)[0].Report
+
+	cfg, _ := reportSetup(t, reportLines(), "", "")
+	t.Setenv(config.EnvVar, cfg)
+	text, err := report()
+	if err != nil || !strings.Contains(text, "1. SOURCES") || !strings.Contains(text, "5. BY FAMILY") {
+		t.Fatalf("report: %v\n%s", err, text)
+	}
+	if !strings.Contains(text, "2 read, 2 events") {
+		t.Errorf("the interface should report yesterday's two requests:\n%s", text)
+	}
+	for _, leak := range []string{"203.0.113", "private", "abc12-34", "secret-ref"} {
+		if strings.Contains(text, leak) {
+			t.Errorf("the interface's report contains %q", leak)
+		}
+	}
+	t.Setenv(config.EnvVar, "/nonexistent/logagent.yaml")
+	if _, err := report(); !errors.Is(err, config.ErrNoConfig) {
+		t.Errorf("no configuration: error = %v", err)
+	}
+}

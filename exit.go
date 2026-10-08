@@ -1,7 +1,10 @@
 package logagent
 
 import (
+	"bufio"
+	"compress/gzip"
 	"errors"
+	"io"
 	"io/fs"
 	"net"
 	"net/url"
@@ -9,7 +12,9 @@ import (
 
 	"github.com/caltechlibrary/logagent/internal/check"
 	"github.com/caltechlibrary/logagent/internal/config"
+	"github.com/caltechlibrary/logagent/internal/logread"
 	"github.com/caltechlibrary/logagent/internal/nginxconf"
+	"github.com/caltechlibrary/logagent/internal/sample"
 )
 
 // The exit codes of the workspace convention (DR-0014) that logagent can
@@ -66,7 +71,12 @@ func classify(err error) (string, int) {
 		return "config", exitConfig
 	case errors.Is(err, nginxconf.ErrSyntax), errors.Is(err, nginxconf.ErrInclude), errors.Is(err, check.ErrNoServers):
 		return "data", exitData
-	case errors.Is(err, check.ErrUnsupported):
+	case errors.Is(err, logread.ErrMismatch), errors.Is(err, bufio.ErrTooLong), errors.Is(err, gzip.ErrHeader),
+		errors.Is(err, gzip.ErrChecksum), errors.Is(err, io.ErrUnexpectedEOF):
+		return "data", exitData
+	case errors.Is(err, logread.ErrNotConfigured), errors.Is(err, logread.ErrNoTime):
+		return "config", exitConfig
+	case errors.Is(err, check.ErrUnsupported), errors.Is(err, logread.ErrUnsupported), errors.Is(err, sample.ErrFormat):
 		return "negative", exitNegative
 	case errors.Is(err, fs.ErrNotExist), errors.Is(err, exec.ErrNotFound):
 		return "no_input", exitNoInput

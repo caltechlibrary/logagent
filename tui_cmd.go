@@ -40,6 +40,17 @@ func runInterface(appName string, stderr io.Writer) int {
 			}
 			return b.String(), nil
 		},
+		Report: func() (string, error) {
+			r, err := buildTrafficReport(reportOptions{top: defaultTop})
+			if err != nil {
+				return "", err
+			}
+			var b bytes.Buffer
+			if err := r.WriteText(&b, defaultTop); err != nil {
+				return "", err
+			}
+			return b.String(), nil
+		},
 	})
 	if err != nil {
 		_, code := classify(err)

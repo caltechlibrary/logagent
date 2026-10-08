@@ -68,7 +68,7 @@ func TestBuildFillsEveryField(t *testing.T) {
 	ev := mustBuild(t, line(), opts())
 	want := Event{
 		V: 1, T: time.Date(2026, 10, 8, 22, 27, 13, 0, time.UTC), Method: "GET", Class: "ui-lookup",
-		Status: 200, RT: 0.095, URT: 0.096, Cache: "HIT",
+		Status: 200, RT: 0.095, URT: 0.096, Timed: true, Cache: "HIT",
 		UA: "Mozilla/5.0 (Windows NT 10.0) Chrome/148", Family: "undeclared Windows", Declared: "none",
 		Country: "US", Plat: "Windows", CH: true, Lang: "en-us", Via: true,
 		Net: "203.0.113.0/24",
@@ -99,6 +99,24 @@ func TestUpstreamSecondsSumOverRetries(t *testing.T) {
 		if got := mustBuild(t, v, opts()).URT; math.Abs(got-want) > 1e-9 {
 			t.Errorf("urt %q = %v, want %v", in, got, want)
 		}
+	}
+}
+
+// A request that took no measurable time and a line that has no timing at all
+// are different things: the report divides upstream seconds by the requests
+// that were timed, and a host that changed its log format mid-window has both.
+func TestTimedSaysWhetherTheLogRecordedARequestTime(t *testing.T) {
+	for in, want := range map[string]bool{"0.000": true, "0.095": true, "": false, "-": false, "junk": false} {
+		v := line()
+		v["request_time"] = in
+		if got := mustBuild(t, v, opts()).Timed; got != want {
+			t.Errorf("request_time %q: Timed = %v, want %v", in, got, want)
+		}
+	}
+	v := line()
+	delete(v, "request_time")
+	if mustBuild(t, v, opts()).Timed {
+		t.Error("Timed is true for a line with no request_time variable")
 	}
 }
 

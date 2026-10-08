@@ -229,3 +229,115 @@ func TestRangesMaxAgeDays(t *testing.T) {
 		}
 	}
 }
+
+const withClasses = minimal + `
+classes:
+  default: misc
+  rules:
+    - name: api-iiif
+      prefix: /api/iiif/
+    - name: api-files
+      pattern: '/api/records/[^/]+/(draft/)?files'
+    - name: api-files
+      pattern: '/api/records/[^/]+/files'
+families:
+  - name: partner
+    match: [partnerbot]
+    declared: false
+  - name: Exa
+    match: [crawler.exa.ai]
+`
+
+func TestLoadClassesAndFamilies(t *testing.T) {
+	c, err := Load(write(t, withClasses))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !c.HasClasses() {
+		t.Error("HasClasses = false")
+	}
+	pc := c.PathClasses()
+	for path, want := range map[string]string{
+		"/api/iiif/x":                "api-iiif",
+		"/api/records/a/files":       "api-files",
+		"/api/records/a/draft/files": "api-files",
+		"/nothing":                   "misc",
+	} {
+		if got := pc.Class(path); got != want {
+			t.Errorf("Class(%q) = %q, want %q", path, got, want)
+		}
+	}
+	f := c.FamilyData()
+	if got, declared := f.Lookup("PartnerBot/1"); got != "partner" || declared {
+		t.Errorf("partner = %q, %v; declared: false must be honoured", got, declared)
+	}
+	// declared defaults to true when the key is left out.
+	if got, declared := f.Lookup("x crawler.exa.ai x"); got != "Exa" || !declared {
+		t.Errorf("Exa = %q, %v; declared must default to true", got, declared)
+	}
+}
+
+func TestAHostWithNoClassesGetsOneClass(t *testing.T) {
+	c, err := Load(write(t, minimal))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if c.HasClasses() {
+		t.Error("HasClasses = true for a file with no classes key")
+	}
+	if got := c.PathClasses().Class("/api/iiif/x"); got != "other" {
+		t.Errorf("Class = %q, want other", got)
+	}
+	// The embedded families are still there.
+	if got, _ := c.FamilyData().Lookup("ExaSearchBot/1.0"); got != "Exa" {
+		t.Errorf("embedded families lost: %q", got)
+	}
+}
+
+func TestLoadRejectsBadClassesAndFamilies(t *testing.T) {
+	for _, c := range []struct{ name, yaml, mention string }{
+		{"unknown key under classes", minimal + "classes:\n  rule: []\n", "rule"},
+		{"unknown key in a rule", minimal + "classes:\n  rules:\n    - name: a\n      prefx: /a\n", "prefx"},
+		{"rule without a name", minimal + "classes:\n  rules:\n    - prefix: /a\n", "classes"},
+		{"rule with neither", minimal + "classes:\n  rules:\n    - name: a\n", "classes"},
+		{"rule with both", minimal + "classes:\n  rules:\n    - name: a\n      prefix: /a\n      pattern: /b\n", "classes"},
+		{"pattern does not compile", minimal + "classes:\n  rules:\n    - name: a\n      pattern: '('\n", "classes"},
+		{"family without a name", minimal + "families:\n  - match: [x]\n", "families"},
+		{"family with nothing to match", minimal + "families:\n  - name: x\n", "families"},
+		{"family listed twice", minimal + "families:\n  - name: x\n    match: [a]\n  - name: x\n    match: [b]\n", "families"},
+		{"unknown key in a family", minimal + "families:\n  - name: x\n    match: [a]\n    declaired: true\n", "declaired"},
+	} {
+		p := write(t, c.yaml)
+		_, err := Load(p)
+		if !errors.Is(err, ErrInvalid) {
+			t.Errorf("%s: error = %v, want ErrInvalid", c.name, err)
+			continue
+		}
+		if !strings.Contains(err.Error(), c.mention) {
+			t.Errorf("%s: error %q does not mention %q", c.name, err, c.mention)
+		}
+	}
+}
+
+func TestTheExampleShowsTheCaltechAuthorsClasses(t *testing.T) {
+	c, err := Load("../../examples/logagent.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.HasClasses() {
+		t.Fatal("the example should show classes")
+	}
+	pc := c.PathClasses()
+	for path, want := range map[string]string{
+		"/api/iiif/record:abc:f.pdf/full/300,/0/default.png": "api-iiif",
+		"/api/records/abc12-34/versions":                     "api-versions",
+		"/api/records/abc12-34":                              "api-record",
+		"/records/abc12-34/files/x.pdf":                      "ui-files",
+		"/search":                                            "ui-search",
+		"/communities/x/records":                             "other",
+	} {
+		if got := pc.Class(path); got != want {
+			t.Errorf("Class(%q) = %q, want %q", path, got, want)
+		}
+	}
+}

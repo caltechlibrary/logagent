@@ -14,6 +14,7 @@ import (
 	"os"
 	"sort"
 
+	"github.com/caltechlibrary/logagent/internal/classify"
 	"github.com/caltechlibrary/logagent/internal/fields"
 	"gopkg.in/yaml.v3"
 )
@@ -53,9 +54,38 @@ type Config struct {
 	InternalCIDRs []string          `yaml:"internal_ranges"`
 	Retention     Retention         `yaml:"retention"`
 	Fields        map[string]string `yaml:"fields"`
+	ClassRules    Classes           `yaml:"classes"`
+	HostFamilies  []Family          `yaml:"families"`
 
 	internal []netip.Prefix
 	trusted  []netip.Prefix
+	classes  *classify.Classes
+	families *classify.Families
+}
+
+// Classes is the `classes` key: the host's path-class rules, tried in order,
+// and the class for a path no rule matches (default "other").
+type Classes struct {
+	Rules   []ClassRule `yaml:"rules"`
+	Default string      `yaml:"default"`
+}
+
+// ClassRule is one entry of `classes.rules`: a class name and either a path
+// prefix or a pattern matched from the start of the path. Several rules may
+// share a name.
+type ClassRule struct {
+	Name    string `yaml:"name"`
+	Prefix  string `yaml:"prefix"`
+	Pattern string `yaml:"pattern"`
+}
+
+// Family is one entry of the `families` key: a family the host adds to, or
+// uses to replace, logagent's embedded list of declared automated agents.
+// Declared defaults to true when left out.
+type Family struct {
+	Name     string   `yaml:"name"`
+	Match    []string `yaml:"match"`
+	Declared *bool    `yaml:"declared"`
 }
 
 // Source says where the web server's configuration comes from: a saved
@@ -103,6 +133,32 @@ type Retention struct {
 func (c *Config) InternalRanges() []netip.Prefix {
 	return append([]netip.Prefix(nil), c.internal...)
 }
+
+// HasClasses reports whether the file has any path-class rules. A host with
+// none gets a single class, "other", and a report should say so.
+//
+// @returns {bool} true when `classes.rules` is not empty
+// @example
+//
+//	if !cfg.HasClasses() { fmt.Println("no path classes are configured") }
+func (c *Config) HasClasses() bool { return len(c.ClassRules.Rules) > 0 }
+
+// PathClasses returns the host's path-class rules, compiled.
+//
+// @returns {*classify.Classes} the rules, or a single "other" class when there are none
+// @example
+//
+//	fmt.Println(cfg.PathClasses().Class("/api/records"))
+func (c *Config) PathClasses() *classify.Classes { return c.classes }
+
+// FamilyData returns logagent's embedded declared-agent list with the host's
+// `families` added, a host entry replacing an embedded one of the same name.
+//
+// @returns {*classify.Families} the combined data
+// @example
+//
+//	name, declared := cfg.FamilyData().Lookup("ExaSearchBot/1.0")
+func (c *Config) FamilyData() *classify.Families { return c.families }
 
 // TrustedRanges returns proxy.trusted_ranges, which override the module's
 // snapshot of the proxy's published ranges.
@@ -228,6 +284,20 @@ func (c *Config) validate() error {
 	}
 	if c.trusted, err = parseRanges("proxy.trusted_ranges", c.Proxy.TrustedRanges); err != nil {
 		return err
+	}
+	rules := make([]classify.Rule, len(c.ClassRules.Rules))
+	for i, r := range c.ClassRules.Rules {
+		rules[i] = classify.Rule{Name: r.Name, Prefix: r.Prefix, Pattern: r.Pattern}
+	}
+	if c.classes, err = classify.NewClasses(rules, c.ClassRules.Default); err != nil {
+		return fmt.Errorf("classes: %w", err)
+	}
+	entries := make([]classify.Entry, len(c.HostFamilies))
+	for i, f := range c.HostFamilies {
+		entries[i] = classify.Entry{Name: f.Name, Match: f.Match, Declared: f.Declared == nil || *f.Declared}
+	}
+	if c.families, err = classify.DefaultFamilies().With(entries); err != nil {
+		return fmt.Errorf("families: %w", err)
 	}
 	r := c.Retention
 	for _, d := range []struct {

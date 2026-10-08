@@ -36,6 +36,37 @@ internal_ranges:
   - "131.215.0.0/16"                # Caltech campus
   # - "192.0.2.0/24"                # a remote site
 
+# Path classes: how a request path is named in reports. The rules are tried in
+# order and the first that matches wins; a path no rule matches gets `default`
+# (it is "other" if left out). A rule has a name and either a prefix, or a
+# pattern matched from the START of the path (put $ at the end to match the
+# whole path). Several rules may share a name. The query string is never shown
+# to a rule. These are CaltechAUTHORS's; a host with different URLs writes its
+# own. Without any rules every request is one class, "other", and the report
+# says so.
+classes:
+  default: other
+  rules:
+    - {name: api-iiif,        prefix: /api/iiif/}
+    - {name: api-files,       pattern: '/api/records/[^/]+/(draft/)?files'}
+    - {name: api-versions,    pattern: '/api/records/[^/]+/versions'}
+    - {name: api-communities, pattern: '/api/records/[^/]+/communities'}
+    - {name: api-record,      pattern: '/api/records/[^/]+$'}
+    - {name: api-search,      prefix: /api/records}
+    - {name: api-other,       prefix: /api}
+    - {name: ui-files,        pattern: '/records/[^/]+/files'}
+    - {name: ui-record,       pattern: '/records/[^/]+$'}
+    - {name: ui-search,       prefix: /search}
+    - {name: static,          pattern: '/(static|assets)/'}
+
+# Declared automated agents this host knows about, added to logagent's own list
+# (see `logagent help config`). An entry here is tried before the built-in ones,
+# and one with the name of a built-in entry replaces it. `match` is text found,
+# ignoring case, in the User-Agent; `declared` is true unless you say false.
+# families:
+#   - name: example-agent
+#     match: [example-agent]
+
 # Retention, in days.
 retention:
   logrotate: /etc/logrotate.d/nginx # governs layer 1, the web server's own log

@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "retrieved": "2026-10-08",
+  "note": "Declared automated agents are public knowledge: each names itself in its user agent. Matching is a case-folded substring and the first entry that matches wins, so a specific name goes before a general one. An agent that names itself is a claim, not proof (see DR-0006: every entry is reported as unverified). The names are the ones bot-family-breakdown.bash used, so the report and the script agree. A host adds to or overrides this list in its own configuration.",
+  "entries": [
+    {"name": "Exa", "match": ["exasearchbot"], "declared": true},
+    {"name": "OpenAI ChatGPT-User", "match": ["chatgpt-user"], "declared": true},
+    {"name": "OpenAI OAI-SearchBot", "match": ["oai-searchbot"], "declared": true},
+    {"name": "Anthropic Claude-User", "match": ["claude-user"], "declared": true},
+    {"name": "Google Googlebot-claim", "match": ["googlebot"], "declared": true},
+    {"name": "Microsoft bingbot", "match": ["bingbot"], "declared": true},
+    {"name": "Apple Applebot", "match": ["applebot"], "declared": true},
+    {"name": "Meta webindexer", "match": ["meta-webindexer"], "declared": true},
+    {"name": "Meta externalads", "match": ["meta-externalads"], "declared": true},
+    {"name": "PerplexityBot", "match": ["perplexitybot"], "declared": true},
+    {"name": "SemrushBot", "match": ["semrushbot"], "declared": true},
+    {"name": "SemanticScholarBot", "match": ["semanticscholar"], "declared": true},
+    {"name": "DotBot", "match": ["dotbot"], "declared": true},
+    {"name": "Baiduspider", "match": ["baiduspider"], "declared": true},
+    {"name": "KeenableBot", "match": ["keenablebot"], "declared": true},
+    {"name": "AkashicAI", "match": ["akashicai"], "declared": true},
+    {"name": "python-requests", "match": ["python-requests"], "declared": true}
+  ],
+  "generic": {"name": "other-declared", "match": ["bot", "spider", "crawler", "slurp", "uptime"]},
+  "platforms": [
+    {"name": "undeclared Windows", "match": ["windows nt"]},
+    {"name": "undeclared mobile", "match": ["android", "iphone", "ipad"]},
+    {"name": "undeclared Mac", "match": ["macintosh"]},
+    {"name": "undeclared Linux", "match": ["linux", "x11"]}
+  ],
+  "fallback": "undeclared other"
+}

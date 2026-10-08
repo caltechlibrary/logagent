@@ -15,7 +15,7 @@
     {"name": "buffered-response-to-disk", "description": "An upstream response was too large for its buffers and went to a temporary file.", "pattern": "^an upstream response is buffered to a temporary file"},
     {"name": "buffered-request-to-disk", "description": "A request body was too large for its buffer and went to a temporary file.", "pattern": "^a client request body is buffered to a temporary file"},
     {"name": "tls-handshake", "description": "A TLS handshake with a client failed.", "pattern": "^SSL_do_handshake\\(\\) failed"},
-    {"name": "file-not-found", "description": "A file nginx was asked to serve does not exist.", "pattern": "^open\\(\\) \".*\" failed \\(2: No such file or directory\\)"},
+    {"name": "file-not-found", "description": "A file nginx was asked to serve does not exist.", "pattern": "^open\\(\\) \".*\" failed \\((?:2: No such file or directory|20: Not a directory)\\)"},
     {"name": "worker-crash", "description": "A worker process exited on a signal.", "pattern": "^worker process [0-9]+ exited on signal"}
   ]
 }

@@ -94,6 +94,7 @@ func TestEachCategoryMatchesItsMessage(t *testing.T) {
 		{"buffered-request-to-disk", line("warn", "*13 ", `a client request body is buffered to a temporary file /var/cache/nginx/client_temp/0000000002`, req)},
 		{"tls-handshake", line("crit", "*14 ", `SSL_do_handshake() failed (SSL: error:0A000126:SSL routines::unexpected eof while reading) while SSL handshaking`, `, client: 203.0.113.9, server: 0.0.0.0:443`)},
 		{"file-not-found", line("error", "*15 ", `open() "/Sites/x/htdocs/missing.png" failed (2: No such file or directory)`, req)},
+		{"file-not-found", line("error", "*16 ", `open() "/Sites/x/htdocs/index.html/extra" failed (20: Not a directory)`, req)},
 		{"worker-crash", line("alert", "", `worker process 1234 exited on signal 11`, "")},
 	}
 	tab := Default()

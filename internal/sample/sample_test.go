@@ -256,3 +256,94 @@ func TestAnEmptyValueIsAbsentJustAsADashIs(t *testing.T) {
 		t.Errorf("Lines = %d, Present = %v", s.Lines, s.Present)
 	}
 }
+
+// A host's log format grows by appending fields (CaltechAUTHORS added the
+// extended fields on 2026-10-06 and cache= on 2026-10-07), so a window can hold
+// lines written with an older, shorter prefix of today's format. The tolerant
+// parser reads those, with the fields added since left out.
+const currentRaw = deployedRaw + ` cache="$upstream_cache_status"`
+
+const oldCombinedLine = `203.0.113.5 - - [07/Oct/2026:10:00:00 +0000] "GET /r/1 HTTP/1.1" 200 100 "-" "agent/1"`
+const oldExtendedLine = oldCombinedLine + ` rt=0.100 urt="0.200" cf_ray="9ab" cf_country="US" peer=198.41.128.1 lang="en-US" ch_ua="-" ch_plat="-" bot_score="-" ja3="-" ja4="-"`
+const currentLine = oldExtendedLine + ` cache="HIT"`
+
+func TestTolerantParserReadsTheCurrentFormatAndOlderPrefixesOfIt(t *testing.T) {
+	p, err := CompileTolerant(currentRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, older, ok := p.ParseOlder(currentLine)
+	if !ok || older || v["upstream_cache_status"] != "HIT" || v["request_time"] != "0.100" {
+		t.Fatalf("current line: ok %v older %v %v", ok, older, v)
+	}
+	v, older, ok = p.ParseOlder(oldExtendedLine)
+	if !ok || !older {
+		t.Fatalf("a line without cache=: ok %v older %v", ok, older)
+	}
+	if v["request_time"] != "0.100" || v["http_cf_ja4"] != "-" {
+		t.Errorf("fields of the older format are lost: %v", v)
+	}
+	if _, has := v["upstream_cache_status"]; has {
+		t.Errorf("a field the line never had is present: %v", v)
+	}
+	// The stock combined format is the first nine fields of the extended one.
+	v, older, ok = p.ParseOlder(oldCombinedLine)
+	if !ok || !older || v["status"] != "200" || v["http_user_agent"] != "agent/1" {
+		t.Fatalf("a stock combined line: ok %v older %v %v", ok, older, v)
+	}
+	if _, has := v["request_time"]; has {
+		t.Errorf("request_time is present for a line that has none: %v", v)
+	}
+	// An in-between format: the extended fields up to rt and urt.
+	mid := oldCombinedLine + ` rt=0.100 urt="0.200"`
+	if v, older, ok := p.ParseOlder(mid); !ok || !older || v["upstream_response_time"] != "0.200" {
+		t.Errorf("a line cut after urt: ok %v older %v %v", ok, older, v)
+	}
+}
+
+func TestTolerantParserStillRejectsWhatIsNotAnOlderFormOfTheFormat(t *testing.T) {
+	p, err := CompileTolerant(currentRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, l := range map[string]string{
+		"garbage":                         "this is not a log line",
+		"empty":                           "",
+		"cut before the status":           `203.0.113.5 - - [07/Oct/2026:10:00:00 +0000] "GET /r/1 HTTP/1.1"`,
+		"a different order":               `GET /r/1 203.0.113.5 [07/Oct/2026:10:00:00 +0000] 200`,
+		"extra text after the last field": currentLine + " unexpected",
+	} {
+		if _, _, ok := p.ParseOlder(l); ok {
+			t.Errorf("%s: parsed", name)
+		}
+	}
+}
+
+func TestTheStrictParserIsUnchangedAndCheckKeepsUsingIt(t *testing.T) {
+	p, err := Compile(currentRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := p.Parse(oldExtendedLine); ok {
+		t.Error("Parse accepted an older line; check's sample would stop saying a log is in another format")
+	}
+	if _, older, ok := p.ParseOlder(oldExtendedLine); ok || older {
+		t.Errorf("a strict parser's ParseOlder accepted an older line (ok %v older %v)", ok, older)
+	}
+	if v, older, ok := p.ParseOlder(currentLine); !ok || older || v["upstream_cache_status"] != "HIT" {
+		t.Errorf("a strict parser's ParseOlder on a current line: %v %v %v", v, older, ok)
+	}
+}
+
+func TestTolerantParsingOfAFormatWithNothingToCutIsTheStrictOne(t *testing.T) {
+	p, err := CompileTolerant(`$remote_addr [$time_local] $status`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, older, ok := p.ParseOlder(`1.2.3.4 [07/Oct/2026:10:00:00 +0000] 200`); !ok || older {
+		t.Errorf("ok %v older %v", ok, older)
+	}
+	if _, _, ok := p.ParseOlder(`1.2.3.4 [07/Oct/2026:10:00:00 +0000]`); ok {
+		t.Error("a line cut before the status was accepted")
+	}
+}

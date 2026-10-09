@@ -382,3 +382,75 @@ func TestTheRealFormatReadsAtAUsefulSpeed(t *testing.T) {
 		t.Errorf("took %v", elapsed)
 	}
 }
+
+// A format that grew: today's has rt= appended to the test format.
+func tolerant(t testing.TB) *sample.Parser {
+	t.Helper()
+	p, err := sample.CompileTolerant(testFormat + ` rt=$request_time`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func TestLinesInAnOlderShorterFormAreReadAndCounted(t *testing.T) {
+	dir := t.TempDir()
+	var lines []string
+	for i := 0; i < 30; i++ {
+		lines = append(lines, line(1, i, i)) // the format before rt= was added
+	}
+	for i := 30; i < 60; i++ {
+		lines = append(lines, line(2, i-30, i)+" rt=0.250")
+	}
+	put(t, dir, "access.log", day.Add(10*time.Hour), lines...)
+	var older, withRT int
+	st, err := Read(filepath.Join(dir, "access.log"), tolerant(t), Window{}, func(v sample.Values, _ time.Time) {
+		if _, has := v["request_time"]; has {
+			withRT++
+		} else {
+			older++
+		}
+	})
+	if err != nil {
+		t.Fatalf("a window holding both forms was refused: %v", err)
+	}
+	if st.Lines != 60 || st.Older != 30 || st.Skipped != 0 || older != 30 || withRT != 30 {
+		t.Errorf("Lines %d Older %d Skipped %d; callback saw %d older and %d with rt", st.Lines, st.Older, st.Skipped, older, withRT)
+	}
+}
+
+// logrotate gives a rotated file the time of its last line, so the file for the
+// day before can be the one that has to be opened to see whether it holds the
+// first second of the window. It may well be in the previous format throughout.
+func TestAnAllOlderFormatRotatedFileOpenedForTheWindowEdgeIsNotAMismatch(t *testing.T) {
+	dir := t.TempDir()
+	var old []string
+	for i := 0; i < 40; i++ {
+		old = append(old, line(23, i%60, i))
+	}
+	put(t, dir, "access.log.2.gz", day.Add(1*time.Second), old...) // mtime just after the window opens
+	put(t, dir, "access.log", day.Add(8*time.Hour), line(6, 0, 99)+" rt=0.100")
+	st, err := Read(filepath.Join(dir, "access.log"), tolerant(t), Window{Since: day}, func(sample.Values, time.Time) {})
+	if err != nil {
+		t.Fatalf("err = %v, want none: the older form is a form of the format, not a different format", err)
+	}
+	if len(st.Files) != 2 || st.Older+st.Outside < 40 {
+		t.Errorf("files %v, Older %d, Outside %d", st.Files, st.Older, st.Outside)
+	}
+}
+
+func TestAStrictParserStillCallsAnOlderFormatAMismatch(t *testing.T) {
+	dir := t.TempDir()
+	var lines []string
+	for i := 0; i < 30; i++ {
+		lines = append(lines, line(1, i, i))
+	}
+	put(t, dir, "access.log", day, lines...)
+	strict, err := sample.Compile(testFormat + ` rt=$request_time`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Read(filepath.Join(dir, "access.log"), strict, Window{}, func(sample.Values, time.Time) {}); !errors.Is(err, ErrMismatch) {
+		t.Errorf("err = %v, want ErrMismatch", err)
+	}
+}

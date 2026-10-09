@@ -70,6 +70,10 @@ type Stats struct {
 	Skipped int
 	// Outside counts lines that matched but fell outside the window.
 	Outside int
+	// Older counts the lines delivered that were written in an older, shorter
+	// form of the format (see sample.CompileTolerant), so they lack the fields
+	// added since. They are included in Lines.
+	Older int
 	// First and Last are the earliest and latest times among the delivered lines.
 	First, Last time.Time
 }
@@ -210,7 +214,7 @@ func readFile(name string, p *sample.Parser, w Window, fn func(sample.Values, ti
 			continue
 		}
 		total++
-		v, ok := p.Parse(text)
+		v, older, ok := p.ParseOlder(text)
 		var t time.Time
 		if ok {
 			t, err = time.Parse(timeLayout, v["time_local"])
@@ -229,6 +233,9 @@ func readFile(name string, p *sample.Parser, w Window, fn func(sample.Values, ti
 			continue
 		}
 		st.Lines++
+		if older {
+			st.Older++
+		}
 		if st.First.IsZero() || t.Before(st.First) {
 			st.First = t
 		}

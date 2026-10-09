@@ -317,7 +317,7 @@ func buildTrafficReport(opt reportOptions) (*report.Report, error) {
 	if err != nil {
 		return nil, err
 	}
-	parser, err := sample.Compile(format)
+	parser, err := sample.CompileTolerant(format)
 	if err != nil {
 		return nil, err
 	}

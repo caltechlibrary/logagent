@@ -191,7 +191,7 @@ func TestReportExitCodes(t *testing.T) {
 	wrongFormat := func() string {
 		var lines []string
 		for i := 0; i < 30; i++ {
-			lines = append(lines, fmt.Sprintf(`203.0.113.7 - - [07/Oct/2026:10:00:00 +0000] "GET /r/%d HTTP/1.1" 200 12 "-" "agent"`, i))
+			lines = append(lines, fmt.Sprintf(`[07/Oct/2026:10:00:00 +0000] 203.0.113.7 GET /r/%d 200 12 agent`, i)) // a different layout, not an older form of ours
 		}
 		c, _ := reportSetup(t, lines, "", "")
 		return c
@@ -308,5 +308,26 @@ func TestReportHelpAndItsExitStatusSection(t *testing.T) {
 	}
 	if strings.Contains(p.Text, "planned and is not implemented") {
 		t.Error("the page still says the command is not implemented")
+	}
+}
+
+func TestReportReadsALogWhoseFormatGrewDuringTheWindow(t *testing.T) {
+	at(t)
+	stock := `203.0.113.5 - - [07/Oct/2026:03:00:00 +0000] "GET /search?q=private HTTP/1.1" 200 100 "https://example.org/secret-ref" "Mozilla/5.0 (Windows NT 10.0) Chrome/148"`
+	lines := append([]string{stock, stock, stock}, reportLines()...)
+	cfg, _ := reportSetup(t, lines, "", "")
+	code, out, errOut := run("report", "--json", "--config", cfg, "--day", "2026-10-07")
+	if code != ExitOK || errOut != "" {
+		t.Fatalf("exit %d, stderr %q\n%s", code, errOut, out)
+	}
+	var r struct {
+		Lines, Events, Older int
+		Notes                []string
+	}
+	if err := json.Unmarshal([]byte(out), &r); err != nil {
+		t.Fatal(err)
+	}
+	if r.Events != 5 || r.Older != 3 || !strings.Contains(strings.Join(r.Notes, "\n"), "older") {
+		t.Errorf("Events %d Older %d Notes %q, want 5, 3 and a note about the older format", r.Events, r.Older, r.Notes)
 	}
 }

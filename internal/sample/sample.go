@@ -29,6 +29,15 @@ type Values map[string]string
 type Parser struct {
 	re   *regexp.Regexp
 	vars []string // one per capture group, in order, repeats included
+	// older are shorter prefixes of the format, longest first, for a tolerant
+	// parser: lines written before fields were appended to the format.
+	older []variant
+}
+
+// variant is the format cut after one of its variables.
+type variant struct {
+	re   *regexp.Regexp
+	vars []string
 }
 
 type part struct {
@@ -45,7 +54,25 @@ type part struct {
 // @example
 //
 //	p, err := sample.Compile(`$remote_addr "$request" $status`)
-func Compile(format string) (*Parser, error) {
+func Compile(format string) (*Parser, error) { return compile(format, false) }
+
+// CompileTolerant is Compile, and the Parser it returns can also read, with
+// ParseOlder, a line written in an older, shorter form of the format. A web
+// server's log format grows by appending fields, so the log of a window that
+// spans a change holds both. The older forms are the format cut after each
+// variable down to the one holding the status (or the time, if there is no
+// status), so a line cut before those is still not accepted. Parse is
+// unchanged and strict.
+//
+// @param format {string} the current log format text
+// @returns {*Parser, error} the parser, or an error matching ErrFormat
+// @example
+//
+//	p, err := sample.CompileTolerant(text)
+//	values, older, ok := p.ParseOlder(line)
+func CompileTolerant(format string) (*Parser, error) { return compile(format, true) }
+
+func compile(format string, tolerant bool) (*Parser, error) {
 	var parts []part
 	var lit strings.Builder
 	flush := func() {
@@ -113,7 +140,100 @@ func Compile(format string) (*Parser, error) {
 		return nil, fmt.Errorf("%w: %v", ErrFormat, err)
 	}
 	p.re = re
+	if tolerant {
+		p.older = olderForms(parts)
+	}
 	return p, nil
+}
+
+// olderForms builds the format's shorter forms, longest first. Each keeps the
+// first k variables, down to the one that holds the status, and ends after that
+// variable's closing quote or bracket, if the format has one, or at the end of
+// the line.
+func olderForms(parts []part) []variant {
+	var at []int // index in parts of each variable
+	for i, pt := range parts {
+		if pt.v != "" {
+			at = append(at, i)
+		}
+	}
+	min := len(at) // no shorter form unless a required variable is found
+	found := false
+	for _, need := range []string{"status", "time_local"} {
+		for k, i := range at {
+			if parts[i].v == need {
+				min, found = k+1, true
+				break
+			}
+		}
+		if found {
+			break
+		}
+	}
+	var out []variant
+	for keep := len(at) - 1; keep >= min && keep >= 1; keep-- {
+		last := at[keep-1]
+		var b strings.Builder
+		b.WriteString("^")
+		var vars []string
+		for i := 0; i < last; i++ {
+			if parts[i].v == "" {
+				b.WriteString(regexp.QuoteMeta(parts[i].lit))
+				continue
+			}
+			b.WriteString("([^" + regexp.QuoteMeta(parts[i+1].lit[:1]) + "]*)")
+			vars = append(vars, parts[i].v)
+		}
+		next := parts[last+1].lit // the literal after the last kept variable
+		closing := ""
+		for closing != next && strings.ContainsRune(`"')]`, rune(next[len(closing)])) {
+			closing += next[len(closing) : len(closing)+1]
+		}
+		stop := next[:1]
+		if closing != "" {
+			stop = closing[:1]
+		}
+		b.WriteString("([^" + regexp.QuoteMeta(stop) + "]*)" + regexp.QuoteMeta(closing) + "$")
+		vars = append(vars, parts[last].v)
+		re, err := regexp.Compile(b.String())
+		if err != nil {
+			continue
+		}
+		out = append(out, variant{re: re, vars: vars})
+	}
+	return out
+}
+
+// ParseOlder reads one log line, accepting an older, shorter form of the format
+// if the parser was made with CompileTolerant. The values of a line in an older
+// form hold only the variables it had.
+//
+// @param line {string} the line, with or without a trailing newline
+// @returns {Values} what the line held for each variable it had
+// @returns {bool} true when the line matched an older, shorter form of the format
+// @returns {bool} true when the line matched the format or one of its older forms
+// @example
+//
+//	values, older, ok := p.ParseOlder(line)
+func (p *Parser) ParseOlder(line string) (Values, bool, bool) {
+	if v, ok := p.Parse(line); ok {
+		return v, false, true
+	}
+	line = strings.TrimRight(line, "\r\n")
+	for _, o := range p.older {
+		m := o.re.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		v := Values{}
+		for i, name := range o.vars {
+			if _, dup := v[name]; !dup {
+				v[name] = m[i+1]
+			}
+		}
+		return v, true, true
+	}
+	return nil, false, false
 }
 
 func isNameChar(c byte) bool {

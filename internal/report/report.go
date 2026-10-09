@@ -273,10 +273,12 @@ type Window struct {
 
 // Report is what was counted. Its JSON form has stable keys.
 type Report struct {
-	Window   Window        `json:"window"`
-	Files    []string      `json:"files"`
-	Lines    int           `json:"lines"`
-	Events   int           `json:"events"`
+	Window Window   `json:"window"`
+	Files  []string `json:"files"`
+	Lines  int      `json:"lines"`
+	Events int      `json:"events"`
+	// Older counts the lines written in an older, shorter form of the log format.
+	Older    int           `json:"older"`
 	Skipped  int           `json:"skipped"`
 	Outside  int           `json:"outside"`
 	Internal []InternalRow `json:"internal"`
@@ -314,7 +316,7 @@ func per(total float64, n int) float64 {
 func (a *Aggregator) Report(st logread.Stats) *Report {
 	r := &Report{
 		Window: Window{First: st.First, Last: st.Last}, Files: append([]string{}, st.Files...),
-		Lines: st.Lines, Events: a.events, Skipped: st.Skipped, Outside: st.Outside,
+		Lines: st.Lines, Events: a.events, Older: st.Older, Skipped: st.Skipped, Outside: st.Outside,
 		Internal: []InternalRow{}, Notes: []string{}, Days: []DayRow{}, Hours: []HourRow{},
 		Status: []StatusRow{}, Errors: []ErrorDay{}, Classes: []ClassRow{}, Families: []FamilyRow{},
 	}
@@ -343,6 +345,9 @@ func (a *Aggregator) Report(st logread.Stats) *Report {
 	})
 	if len(a.o.Internal) == 0 && !a.seenInt {
 		r.Notes = append(r.Notes, "no internal ranges are configured (internal_ranges), so campus and other internal traffic is counted with everything else")
+	}
+	if st.Older > 0 {
+		r.Notes = append(r.Notes, fmt.Sprintf("%d of %d lines were written in an older, shorter log format; the fields added since are empty for them", st.Older, st.Lines))
 	}
 	if a.o.NoClasses {
 		r.Notes = append(r.Notes, "no path classes are configured (classes), so every request is one class")

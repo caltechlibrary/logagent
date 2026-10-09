@@ -335,3 +335,36 @@ func TestCollectReadsALogAndTheReportHoldsNoAddressPathQueryOrReferer(t *testing
 		}
 	}
 }
+
+// A log whose format grew: some lines are the stock combined format, which is the
+// first nine fields of today's.
+func TestCollectCountsLinesFromAnOlderFormAndSaysSo(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "access.log")
+	old := `203.0.113.5 - - [07/Oct/2026:01:00:00 +0000] "GET /api/records/abc12-34 HTTP/1.1" 200 100 "-" "Mozilla/5.0 (Windows NT 10.0) Chrome/148"`
+	lines := []string{
+		old, old,
+		logLine("203.0.113.6", "07/Oct/2026:02:00:00 +0000", "GET /api/records/abc12-34 HTTP/1.1", 200, "Mozilla/5.0 (Windows NT 10.0) Chrome/148", "0.300", "0.250"),
+	}
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	p, err := sample.CompileTolerant(realFormat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := Collect(path, p, Options{Class: func(string) string { return "api-record" }})
+	if err != nil {
+		t.Fatalf("Collect: %v", err)
+	}
+	if r.Lines != 3 || r.Events != 3 || r.Older != 2 || r.Skipped != 0 {
+		t.Errorf("Lines %d Events %d Older %d Skipped %d, want 3, 3, 2, 0", r.Lines, r.Events, r.Older, r.Skipped)
+	}
+	notes := strings.Join(r.Notes, "\n")
+	if !strings.Contains(notes, "2 of 3 lines") || !strings.Contains(notes, "older") {
+		t.Errorf("notes %q should say 2 of 3 lines are in an older format", notes)
+	}
+	if !strings.Contains(notes, "1 of 3 requests have a request time") {
+		t.Errorf("notes %q should also say how many requests have a time", notes)
+	}
+}

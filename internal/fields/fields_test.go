@@ -177,3 +177,31 @@ func TestNginxLogFormatRegeneratesTheDeployedFormat(t *testing.T) {
 		t.Error("log_format must end with a semicolon")
 	}
 }
+
+func TestTimeAndRequestHaveAlternativeSpellings(t *testing.T) {
+	tab := Default()
+	for name, want := range map[string]string{"time": "$time_iso8601", "request": "$request_method $uri"} {
+		f, _ := tab.Get(name)
+		found := false
+		for _, a := range f.Nginx.Also {
+			found = found || a == want
+		}
+		if !found {
+			t.Errorf("%s: Also = %v, want it to include %q", name, f.Nginx.Also, want)
+		}
+		if f.Nginx.JSON == "" {
+			t.Errorf("%s: no JSON pairs to suggest", name)
+		}
+	}
+}
+
+func TestAnAlternativeSpellingMustBeVariables(t *testing.T) {
+	bad := strings.Replace(minimalTable, `"nginx":{"expr":"$http_user_agent"}`, `"nginx":{"expr":"$http_user_agent","also":["user agent"]}`, 1)
+	if _, err := Parse([]byte(bad)); err == nil || !strings.Contains(err.Error(), "also") {
+		t.Errorf("Parse err = %v, want a complaint about also", err)
+	}
+	ok := strings.Replace(minimalTable, `"nginx":{"expr":"$http_user_agent"}`, `"nginx":{"expr":"$http_user_agent","also":["$a $b"]}`, 1)
+	if _, err := Parse([]byte(ok)); err != nil {
+		t.Errorf("Parse: %v", err)
+	}
+}

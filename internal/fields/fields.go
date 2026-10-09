@@ -32,6 +32,14 @@ type Server struct {
 	// Unavailable marks a field the server cannot log; Note says why.
 	Unavailable bool   `json:"unavailable"`
 	Note        string `json:"note"`
+	// Also lists other spellings that carry the same information, each one or
+	// more space-separated variables that must all be present (nginx only).
+	// A structured log_format writes the time as $time_iso8601 and the request
+	// as a method and a path, not as $time_local and $request.
+	Also []string `json:"also"`
+	// JSON is the key/value pairs to suggest when this field is missing from
+	// an escape=json log_format. When empty the pair is "name":"expr".
+	JSON string `json:"json"`
 }
 
 // Field is one row of the table.
@@ -124,6 +132,17 @@ func Parse(data []byte) (*Table, error) {
 		}
 		if len(f.Nginx.Expr) < 2 || !strings.HasPrefix(f.Nginx.Expr, "$") {
 			return nil, fmt.Errorf("field table: %s: nginx expr must be a variable such as $name (got %q)", f.Name, f.Nginx.Expr)
+		}
+		for _, alt := range f.Nginx.Also {
+			vars := strings.Fields(alt)
+			if len(vars) == 0 {
+				return nil, fmt.Errorf("field table: %s: nginx also must not be blank", f.Name)
+			}
+			for _, v := range vars {
+				if len(v) < 2 || !strings.HasPrefix(v, "$") {
+					return nil, fmt.Errorf("field table: %s: nginx also %q must be variables such as $name", f.Name, alt)
+				}
+			}
 		}
 		if f.Apache.Expr == "" && !(f.Apache.Unavailable && f.Apache.Note != "") {
 			return nil, fmt.Errorf("field table: %s: apache needs an expr, or unavailable with a note", f.Name)
@@ -278,4 +297,30 @@ func (t *Table) NginxLogFormat(name string) string {
 	}
 	b.WriteString(";")
 	return b.String()
+}
+
+// NginxJSONPairs renders the key/value pairs of the named fields as they are
+// written inside an escape=json log_format, one pair per line, each ending in a
+// comma so they can be pasted before the closing brace's last pair.
+//
+// @param names {[]string} the field names to render, in the order given
+// @returns {string} the pairs, one per line; empty when none of the names exist
+// @example
+//
+//	pairs := fields.Default().NginxJSONPairs([]string{"lang"})
+//	// '"lang":"$http_accept_language",'
+func (t *Table) NginxJSONPairs(names []string) string {
+	var lines []string
+	for _, n := range names {
+		f, ok := t.Get(n)
+		if !ok {
+			continue
+		}
+		pair := f.Nginx.JSON
+		if pair == "" {
+			pair = `"` + f.Name + `":"` + f.Nginx.Expr + `"`
+		}
+		lines = append(lines, "    '"+pair+",'")
+	}
+	return strings.Join(lines, "\n")
 }

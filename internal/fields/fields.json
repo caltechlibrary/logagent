@@ -30,7 +30,7 @@
       "default": "required",
       "applies": "always",
       "combined": true,
-      "nginx": {"expr": "$time_local"},
+      "nginx": {"expr": "$time_local", "also": ["$time_iso8601"], "json": "\"time\":\"$time_iso8601\""},
       "apache": {"expr": "%t"},
       "if_missing": "Already in the combined format."
     },
@@ -41,7 +41,7 @@
       "default": "required",
       "applies": "always",
       "combined": true,
-      "nginx": {"expr": "$request"},
+      "nginx": {"expr": "$request", "also": ["$request_method $uri", "$request_method $request_uri"], "json": "\"method\":\"$request_method\",\"uri\":\"$uri\""},
       "apache": {"expr": "%r"},
       "if_missing": "Already in the combined format."
     },

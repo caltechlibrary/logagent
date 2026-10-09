@@ -321,11 +321,12 @@ func Run(in Input) (*Report, error) {
 			lr.Format = g.al.Args[1]
 		}
 		text, raw, known := builtinCombined, builtinCombined, true
-		sampleErr := ""
+		sampleErr, structured := "", false
 		if d, ok := formats[lr.Format]; ok {
 			pieces := d.Args[1:]
 			if len(pieces) > 0 && strings.HasPrefix(pieces[0], "escape=") {
 				if pieces[0] == "escape=json" {
+					structured = true
 					sampleErr = "the log_format uses escape=json, which the sampler does not read"
 				}
 				pieces = pieces[1:]
@@ -367,13 +368,16 @@ func Run(in Input) (*Report, error) {
 			anyMissing := false
 			for _, q := range reqs {
 				f := q.Field
+				if structured && compatibilityOnly(f) {
+					continue
+				}
 				st := FieldStatus{Name: f.Name, Level: q.Level, Status: "ok"}
 				sev := Note
 				if q.Level == fields.Required {
 					sev = Gap
 				}
 				switch {
-				case !hasVariable(text, f.Nginx.Expr):
+				case !hasField(text, f):
 					st.Status = "missing"
 					anyMissing = true
 					add(Finding{Code: "field-missing", Severity: sev, Field: f.Name, Log: lr.Path, At: lr.At,
@@ -389,7 +393,7 @@ func Run(in Input) (*Report, error) {
 				lr.Fields = append(lr.Fields, st)
 			}
 			if anyMissing {
-				lr.Suggested = suggestFormat(tab, lr)
+				lr.Suggested = suggestFormat(tab, lr, structured)
 			}
 		}
 		r.Logs = append(r.Logs, lr)
@@ -632,8 +636,18 @@ func days(d float64) string {
 
 // suggestFormat builds the text for a log that lacks fields: the format and
 // where it must go.
-func suggestFormat(tab *fields.Table, lr LogReport) string {
+func suggestFormat(tab *fields.Table, lr LogReport, structured bool) string {
 	const name = "logagent_extended"
+	if structured {
+		var missing []string
+		for _, f := range lr.Fields {
+			if f.Status == "missing" {
+				missing = append(missing, f.Name)
+			}
+		}
+		return fmt.Sprintf("Add these pairs to the escape=json log_format %s that the access_log at %s uses, before its closing brace. Pairs go inside the braces, separated by commas; drop the trailing comma on the last pair of the format.\n\n%s\n",
+			lr.Format, lr.At, tab.NginxJSONPairs(missing))
+	}
 	return fmt.Sprintf("Define this log_format in %s before line %d, or in a file included before it: nginx rejects an access_log that names a format defined later. Then change the access_log at %s to use it (access_log %s %s;).\n\n%s\n",
 		lr.At.File, lr.At.Line, lr.At, lr.Path, name, tab.NginxLogFormat(name))
 }
@@ -861,6 +875,22 @@ func hasKey(m map[string]int, k string) bool { _, ok := m[k]; return ok }
 
 // hasVariable reports whether expr (such as $http_cf_ray) appears in a log
 // format as that whole variable, as $name or ${name}.
+func hasField(format string, f fields.Field) bool {
+	if hasVariable(format, f.Nginx.Expr) {
+		return true
+	}
+	for _, alt := range f.Nginx.Also {
+		all := true
+		for _, v := range strings.Fields(alt) {
+			all = all && hasVariable(format, v)
+		}
+		if all {
+			return true
+		}
+	}
+	return false
+}
+
 func hasVariable(format, expr string) bool {
 	name := strings.TrimPrefix(expr, "$")
 	if strings.Contains(format, "${"+name+"}") {

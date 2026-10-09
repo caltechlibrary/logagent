@@ -753,3 +753,89 @@ func TestAPlaceSharedByLaterServersIsListedOnce(t *testing.T) {
 		t.Errorf("findings = %+v", got)
 	}
 }
+
+// jsonFormat is a structured log_format that names every required field, some
+// under another variable: the time as $time_iso8601 and the request as a method
+// and a normalised $uri.
+const jsonFormat = `log_format full escape=json '{"timestamp":"$time_iso8601","status":$status,` +
+	`"request_method":"$request_method","uri":"$uri","remote_addr":"$remote_addr",` +
+	`"body_bytes_sent":$body_bytes_sent,"request_time":$request_time,` +
+	`"upstream_response_time":"$upstream_response_time","http_user_agent":"$http_user_agent"}';`
+
+// A structured format spells time and request differently; that is not a gap.
+func TestAJSONFormatIsNotMissingFieldsItSpellsDifferently(t *testing.T) {
+	r := run(t, cfg("none", nil), host(jsonFormat, ""))
+	for _, name := range []string{"time", "request"} {
+		if got := status(r.Logs[0], name); got != "ok" {
+			t.Errorf("%s: status %s, want ok", name, got)
+		}
+	}
+	for _, f := range find(r, "field-missing") {
+		if f.Severity == Gap || f.Field == "time" || f.Field == "request" {
+			t.Errorf("unexpected finding: %+v", f)
+		}
+	}
+	if r.ExitCode() != 0 {
+		t.Errorf("ExitCode = %d, want 0 (only notes are left)", r.ExitCode())
+	}
+}
+
+// Fields only the combined layout carries are not asked of a structured format.
+func TestAJSONFormatIsNotAskedForTheCompatibilityFields(t *testing.T) {
+	r := run(t, cfg("none", nil), host(jsonFormat, ""))
+	for _, f := range r.Logs[0].Fields {
+		if f.Name == "user" {
+			t.Errorf("user (compatibility only) is reported for a JSON format: %+v", f)
+		}
+	}
+}
+
+// A method alone names no path, so it does not stand in for the request.
+func TestAMethodWithoutAPathIsStillAMissingRequest(t *testing.T) {
+	format := strings.Replace(jsonFormat, `"uri":"$uri",`, "", 1)
+	r := run(t, cfg("none", nil), host(format, ""))
+	if got := status(r.Logs[0], "request"); got != "missing" {
+		t.Errorf("request: status %s, want missing", got)
+	}
+}
+
+// The alternative spellings count in any format, not only a structured one.
+func TestAnISOTimeCountsInAnyFormat(t *testing.T) {
+	format := `log_format full '$remote_addr [$time_iso8601] "$request" $status $body_bytes_sent "$http_user_agent" rt=$request_time urt="$upstream_response_time"';`
+	r := run(t, cfg("none", nil), host(format, ""))
+	if got := status(r.Logs[0], "time"); got != "ok" {
+		t.Errorf("time: status %s, want ok", got)
+	}
+}
+
+// What is missing from a structured format is suggested as JSON pairs to add,
+// never as a combined-layout log_format.
+func TestAMissingFieldInAJSONFormatIsSuggestedAsJSON(t *testing.T) {
+	r := run(t, cfg("cloudflare", nil), host(jsonFormat, realIP))
+	l := r.Logs[0]
+	for _, want := range []string{`"cf_country":"$http_cf_ipcountry"`, `"peer":"$realip_remote_addr"`} {
+		if !strings.Contains(l.Suggested, want) {
+			t.Errorf("Suggested lacks %s:\n%s", want, l.Suggested)
+		}
+	}
+	for _, unwanted := range []string{"log_format logagent_extended", "$remote_user", `"user"`} {
+		if strings.Contains(l.Suggested, unwanted) {
+			t.Errorf("Suggested holds %q for a JSON format:\n%s", unwanted, l.Suggested)
+		}
+	}
+	if !strings.Contains(l.Suggested, "escape=json") {
+		t.Errorf("Suggested does not say the pairs belong in the escape=json format:\n%s", l.Suggested)
+	}
+}
+
+// A JSON format missing the time gets the ISO form of it, not $time_local.
+func TestAMissingTimeInAJSONFormatIsSuggestedInISOForm(t *testing.T) {
+	format := strings.Replace(jsonFormat, `"timestamp":"$time_iso8601",`, "", 1)
+	r := run(t, cfg("none", nil), host(format, ""))
+	if got := status(r.Logs[0], "time"); got != "missing" {
+		t.Fatalf("time: status %s, want missing", got)
+	}
+	if s := r.Logs[0].Suggested; !strings.Contains(s, `"time":"$time_iso8601"`) {
+		t.Errorf("Suggested:\n%s", s)
+	}
+}

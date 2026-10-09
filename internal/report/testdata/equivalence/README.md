@@ -1,6 +1,6 @@
 # Equivalence fixtures
 
-`access.log` is a synthetic log of 900 requests in the 19-field format, written once
+`access.log` is a synthetic log of 910 requests in the 19-field format, written once
 by a seeded generator (seed 20261008): every declared family, every platform bucket,
 every path class of the CaltechAUTHORS example, 429s, 504s, retried upstream times
 (`"0.1, 0.2"`) and a few requests with no request time. No production content.
@@ -26,3 +26,8 @@ The test compares the span, the request and 429 counts, the percentiles and the
 share of seconds at each level, for all `/api` and for `/api/iiif/`. The script's
 campus group is not compared: internal-range requests are counted, not stored, so
 the report has no concurrency for them.
+
+Ten of the requests carry a user agent longer than 200 bytes whose platform (or crawler
+name) comes after byte 200. The event stores the agent cut at 200 bytes but must decide the
+family from all of it, as the script does; validating on CaltechAUTHORS found 12 real
+requests that the first version of the report got wrong this way (2026-10-09).

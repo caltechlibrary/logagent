@@ -92,7 +92,8 @@ type Options struct {
 	// Nil leaves Class empty.
 	Class func(path string) string
 	// Family returns the family for a user agent and whether it is a declared automated agent.
-	// Nil leaves Family empty and Declared "none".
+	// It is given the whole user agent, not the cut that is stored. Nil leaves Family empty
+	// and Declared "none".
 	Family func(userAgent string) (family string, declared bool)
 }
 
@@ -144,7 +145,8 @@ func Build(v map[string]string, o Options) (Event, Outcome, error) {
 		return Event{}, Outcome{}, fmt.Errorf("%w: status %q", ErrInvalid, v["status"])
 	}
 	method, path := splitRequest(v["request"])
-	ua := cutUserAgent(dash(v["http_user_agent"]))
+	fullUA := dash(v["http_user_agent"])
+	ua := cutUserAgent(fullUA)
 	ev := Event{
 		V: Version, T: t.UTC().Truncate(time.Second), Method: method, Status: status,
 		RT: seconds(v["request_time"]), URT: sumSeconds(v["upstream_response_time"]), Timed: isNumber(v["request_time"]),
@@ -159,7 +161,9 @@ func Build(v map[string]string, o Options) (Event, Outcome, error) {
 	}
 	if o.Family != nil {
 		var declared bool
-		ev.Family, declared = o.Family(ua)
+		// The stored agent is cut, but the family is decided from all of it: a long
+		// agent can name its platform after the cut.
+		ev.Family, declared = o.Family(fullUA)
 		if declared {
 			ev.Declared = "unverified"
 		}

@@ -1,14 +1,14 @@
 A. per family, all five days: requests, share of api-* classes, upstream seconds (new-format lines only)
 family                      requests api-share ui+other      up_s  api_up_s iiif_up_s
 Exa                               70     54.3%       32        36        30        19
-other-declared                    35     51.4%       17        17        12         7
+other-declared                    37     54.1%       17        18        13         7
 python-requests                   19     63.2%        7        18        17        14
 AkashicAI                         12     33.3%        8         7         4         4
-undeclared Windows               205     53.7%       95        84        63        32
+undeclared Windows               207     54.1%       95        84        64        32
 undeclared other                  38     57.9%       16        16        11         5
-undeclared mobile                174     48.9%       89        73        50        33
-undeclared Mac                   132     54.5%       60        62        44        25
-undeclared Linux                  63     55.6%       28        41        36        28
+undeclared mobile                176     49.4%       89        74        51        33
+undeclared Mac                   134     55.2%       60        62        45        25
+undeclared Linux                  65     56.9%       28        42        37        28
 OpenAI ChatGPT-User               28     46.4%       15         8         4         0
 Microsoft bingbot                 34     58.8%       14         9         4         1
 Meta webindexer                   41     46.3%       22        11         7         3
@@ -19,12 +19,12 @@ A2. upstream seconds per request by family (new-format lines)
 python-requests               0.926 s/req  (19 new-format reqs)
 AkashicAI                     0.560 s/req  (12 new-format reqs)
 Exa                           0.517 s/req  (70 new-format reqs)
-other-declared                0.485 s/req  (35 new-format reqs)
-undeclared Windows            0.416 s/req  (201 new-format reqs)
+other-declared                0.477 s/req  (37 new-format reqs)
+undeclared Windows            0.415 s/req  (203 new-format reqs)
 undeclared other              0.414 s/req  (38 new-format reqs)
-undeclared mobile             0.427 s/req  (171 new-format reqs)
-undeclared Mac                0.485 s/req  (127 new-format reqs)
-undeclared Linux              0.651 s/req  (63 new-format reqs)
+undeclared mobile             0.426 s/req  (173 new-format reqs)
+undeclared Mac                0.483 s/req  (129 new-format reqs)
+undeclared Linux              0.641 s/req  (65 new-format reqs)
 OpenAI ChatGPT-User           0.281 s/req  (28 new-format reqs)
 Microsoft bingbot             0.253 s/req  (34 new-format reqs)
 Meta webindexer               0.268 s/req  (40 new-format reqs)
@@ -33,10 +33,10 @@ Anthropic Claude-User         0.586 s/req  (15 new-format reqs)
 
 B. 2026-10-07 (partial day to ~15:52Z): requests and 429s by family
 family                      requests    429s     rate
-undeclared Windows                84       7    8.33%
-undeclared mobile                 66       5    7.58%
-undeclared Mac                    43       2    4.65%
-undeclared Linux                  26       1    3.85%
+undeclared Windows                86       7    8.14%
+undeclared mobile                 68       5    7.35%
+undeclared Mac                    45       2    4.44%
+undeclared Linux                  28       1    3.57%
 Microsoft bingbot                 18       1    5.56%
 Meta webindexer                   18       3   16.67%
 undeclared other                  14       0    0.00%
@@ -45,7 +45,7 @@ OpenAI ChatGPT-User                9       1   11.11%
 Anthropic Claude-User              7       1   14.29%
 Exa                               27       2    7.41%
 python-requests                    5       0    0.00%
-other-declared                    12       0    0.00%
+other-declared                    14       0    0.00%
 AkashicAI                          4       0    0.00%
 
 total 429s on 10-07: 23; from 131.215.0.0/16 clients: 0

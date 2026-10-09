@@ -360,3 +360,22 @@ func TestEventImportsOnlyTheStandardLibrary(t *testing.T) {
 		}
 	}
 }
+
+// The user agent is cut for storage, but the family is decided from all of it:
+// a long agent can name its platform after the 200th byte, and the analysis
+// scripts, which see the whole line, classify it.
+func TestTheFamilyIsDecidedFromTheWholeUserAgentNotTheStoredCut(t *testing.T) {
+	var asked string
+	o := opts()
+	o.Family = func(ua string) (string, bool) { asked = ua; return "undeclared Linux", false }
+	long := "Mozilla/5.0 " + strings.Repeat("x", 300) + " (X11; Linux x86_64)"
+	v := line()
+	v["http_user_agent"] = long
+	ev := mustBuild(t, v, o)
+	if asked != long {
+		t.Errorf("the family lookup was given %d bytes, want the whole %d", len(asked), len(long))
+	}
+	if len(ev.UA) > 200 {
+		t.Errorf("the stored user agent is %d bytes, want it cut at 200", len(ev.UA))
+	}
+}

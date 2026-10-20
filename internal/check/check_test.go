@@ -839,3 +839,42 @@ func TestAMissingTimeInAJSONFormatIsSuggestedInISOForm(t *testing.T) {
 		t.Errorf("Suggested:\n%s", s)
 	}
 }
+
+// jsonWithPeer is jsonFormat with the connection's own address added, which is
+// what a host behind a proxy needs to tell the edge from the visitor.
+var jsonWithPeer = strings.Replace(jsonFormat, `"remote_addr":"$remote_addr",`, `"remote_addr":"$remote_addr","peer":"$realip_remote_addr",`, 1)
+
+// DR-0008: behind a proxy, a structured format without $realip_remote_addr is a
+// gap, as it is for the combined layout, and naming it in a JSON pair clears it.
+func TestAJSONFormatWithoutTheRealIPPeerBehindAProxyIsAGap(t *testing.T) {
+	r := run(t, cfg("cloudflare", nil), host(jsonFormat, realIP))
+	if got := status(r.Logs[0], "peer"); got != "missing" {
+		t.Fatalf("peer: status %s, want missing", got)
+	}
+	var gap bool
+	for _, f := range find(r, "field-missing") {
+		if f.Field == "peer" && f.Severity == Gap {
+			gap = true
+		}
+	}
+	if !gap {
+		t.Errorf("no field-missing gap for peer: %+v", r.Findings)
+	}
+	if r.ExitCode() != 1 {
+		t.Errorf("ExitCode = %d, want 1", r.ExitCode())
+	}
+	r = run(t, cfg("cloudflare", nil), host(jsonWithPeer, realIP))
+	if got := status(r.Logs[0], "peer"); got != "ok" {
+		t.Errorf("with the pair: peer status %s, want ok", got)
+	}
+}
+
+// The peer is asked for only behind a proxy, in a structured format too.
+func TestAJSONFormatWithoutThePeerOnADirectHostIsNotAGap(t *testing.T) {
+	r := run(t, cfg("none", nil), host(jsonFormat, ""))
+	for _, f := range r.Logs[0].Fields {
+		if f.Name == "peer" {
+			t.Errorf("peer is reported on a host that is not behind a proxy: %+v", f)
+		}
+	}
+}

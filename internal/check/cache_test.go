@@ -86,3 +86,20 @@ func TestCacheFindingsNeverChangeTheExitStatus(t *testing.T) {
 		}
 	}
 }
+
+// jsonWithCacheStatus is jsonFormat with the cache status added as a pair.
+var jsonWithCacheStatus = strings.Replace(jsonFormat, `"status":$status,`, `"status":$status,"cache":"$upstream_cache_status",`, 1)
+
+// DR-0008: a structured format on a host with a proxy cache is held to the same
+// cache-status rule as the combined layout.
+func TestAJSONFormatOnACachingHostMustLogTheCacheStatus(t *testing.T) {
+	loc := "proxy_cache z;"
+	r := run(t, cfg("none", nil), cacheHost(jsonFormat, loc))
+	if got := find(r, "cache-status-not-logged"); len(got) != 1 {
+		t.Fatalf("findings = %+v", r.Findings)
+	}
+	r = run(t, cfg("none", nil), cacheHost(jsonWithCacheStatus, loc))
+	if got := find(r, "cache-status-not-logged"); len(got) != 0 {
+		t.Errorf("the pair is present, findings = %+v", got)
+	}
+}

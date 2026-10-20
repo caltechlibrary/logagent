@@ -158,6 +158,20 @@ cache-status-not-logged
   `$upstream_cache_status`, so hits, misses and bypasses cannot be counted (a
   warning).
 
+server-name-swallows-directive
+: a `server_name` line has no terminating semicolon, so nginx reads the next
+  directive's words as more server names and never applies it. `nginx -t` passes
+  with a warning about conflicting server names. Found when a `server_name` has a
+  block, or one of its arguments is the name of a server-block directive such as
+  `add_header` (a gap).
+
+access-log-not-configured
+: an `access_log` writes a file that the host configuration's `logs` does not
+  list, so its fields are not checked and it is not sampled (a note). A secondary
+  log with a narrow format, such as one written for a single experiment, is
+  expected to lack the fields the main log carries. List the file in `logs` to
+  hold it to the field rules. An undefined format name is still a gap.
+
 log-not-found
 : a log listed in the host configuration is written by no `access_log`.
 

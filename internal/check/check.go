@@ -344,6 +344,12 @@ func Run(in Input) (*Report, error) {
 				Message:    fmt.Sprintf("access_log %s names log format %q, which is not defined", lr.Path, lr.Format),
 				Suggestion: "Define the log_format before this access_log, or name an existing format."})
 		}
+		if !listed(c, lr.Path) {
+			add(Finding{Code: "access-log-not-configured", Severity: Note, Log: lr.Path, At: lr.At,
+				Message:    fmt.Sprintf("access_log %s is not one of the logs in the host configuration, so its fields are not checked", lr.Path),
+				Suggestion: "If logagent should read this log, add it to logs in the host configuration; otherwise nothing needs to change. A secondary log with a narrow format is expected to lack the fields the main log carries."})
+			continue
+		}
 		if known {
 			sample, haveSample := in.Samples[lr.Path]
 			if !haveSample && in.Sampler != nil && sampleErr == "" {
@@ -425,6 +431,7 @@ func Run(in Input) (*Report, error) {
 	}
 
 	checkCaches(tree, formats, add)
+	checkServerNames(tree, add)
 	checkErrorLogs(tree, servers, add)
 	if in.ErrorSampler != nil {
 		r.sampleErrorLogs(tree, in.ErrorSampler, add)
@@ -1161,4 +1168,48 @@ func errorLogReport(path string, c errorlog.Counts) ErrorLogReport {
 		e.Categories = append(e.Categories, cc)
 	}
 	return e
+}
+
+// checkServerNames reports a server_name whose line lacks its semicolon. nginx
+// reads on to the next semicolon, so the words of the following directive
+// become extra server names: nginx -t passes (with a warning about conflicting
+// names) and the swallowed directive never applies. CaltechDATA's new-data host
+// lost its Strict-Transport-Security header this way. Two shapes are found: a
+// server_name that has a block (the next directive was a location) and one whose
+// arguments include the name of a server-block directive (data in
+// nginxconf/directives.json).
+func checkServerNames(tree []*nginxconf.Directive, add func(Finding)) {
+	nginxconf.Walk(tree, func(d *nginxconf.Directive) {
+		if d.Name != "server_name" {
+			return
+		}
+		swallowed := ""
+		switch {
+		case d.HasBlock && len(d.Block) > 0:
+			swallowed = "a block"
+		default:
+			for _, a := range d.Args {
+				if nginxconf.IsServerDirective(a) {
+					swallowed = a
+					break
+				}
+			}
+		}
+		if swallowed == "" {
+			return
+		}
+		add(Finding{Code: "server-name-swallows-directive", Severity: Gap, At: placeOf(d),
+			Message:    fmt.Sprintf("server_name at line %d has no terminating semicolon, so nginx reads the next directive (%s) as more server names and never applies it", d.Line, swallowed),
+			Suggestion: "Add the missing semicolon after the last server name. nginx -t passes with a warning about conflicting server names, so the fault is easy to miss."})
+	})
+}
+
+// listed reports whether the host configuration names path in its logs.
+func listed(c *config.Config, path string) bool {
+	for _, l := range c.Logs {
+		if l.Path == path {
+			return true
+		}
+	}
+	return false
 }

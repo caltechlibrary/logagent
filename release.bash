@@ -25,7 +25,7 @@ echo "Checksums written to dist/${CHECKSUMS}"
 
 read -r -p "Push release to GitHub with gh? (y/N) " YES_NO
 if [ "$YES_NO" = "y" ]; then
-	make save msg="prep for ${RELEASE_TAG}, ${RELEASE_NOTES}"
+	make save msg="prep for ${RELEASE_TAG}"
 	gh release create "${RELEASE_TAG}" \
 		--draft \
 		--notes="${RELEASE_NOTES}" \

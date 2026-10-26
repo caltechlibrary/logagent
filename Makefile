@@ -88,7 +88,7 @@ status:
 	git status
 
 save:
-	@if [ "$(msg)" != "" ]; then git commit -am "$(msg)"; else git commit -am "Quick Save"; fi
+	@git commit -am "$${msg:-Quick Save}"
 	git push origin $(BRANCH)
 
 refresh:
@@ -146,7 +146,29 @@ dist: build .FORCE
 release-version: .FORCE
 	@$(MAKE) -B version.go
 
-release: clean release-version test dist
+# release-check stops the release if version.go or any manual page in docs/ (and
+# so in the zip files, which copy docs/) does not carry the version and the
+# hash of the commit being released.
+release-check: .FORCE
+	@HASH=$$(git log --pretty=format:%h -n 1); \
+	if ! grep -q "ReleaseHash = \"$$HASH\"" version.go; then \
+		echo "error: version.go does not carry hash $$HASH" >&2; exit 1; fi; \
+	for FNAME in docs/*.?.md; do \
+		if ! head -1 $$FNAME | grep -q "version $(VERSION) $$HASH"; then \
+			echo "error: $$FNAME does not carry version $(VERSION) $$HASH" >&2; exit 1; fi; \
+	done; \
+	for ZIP in dist/*.zip; do \
+		for PAGE in $$(unzip -Z1 $$ZIP 'docs/*.?.md'); do \
+			if ! unzip -p $$ZIP $$PAGE | head -1 | grep -q "version $(VERSION) $$HASH"; then \
+				echo "error: $$ZIP $$PAGE does not carry version $(VERSION) $$HASH" >&2; exit 1; fi; \
+		done; \
+	done; \
+	echo "release-check: version.go, docs/ and dist/*.zip carry $(VERSION) $$HASH"
+
+# release rewrites version.go from codemeta.json and HEAD, then dist rebuilds
+# the program and regenerates docs/ and man/ from that program, so the version
+# and hash in the binaries, the manual pages and the zip files agree.
+release: clean release-version test dist release-check
 	@printf "\nready to run\n\n\t./release.bash   (or release.ps1 on Windows)\n\n"
 
 .FORCE:

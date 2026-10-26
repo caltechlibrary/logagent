@@ -1,4 +1,4 @@
-%logagent-fields(5) user manual | version 0.1.0 c75cfd9
+%logagent-fields(5) user manual | version 0.1.0 ef857f3
 % R. S. Doiel
 % 2026-10-26
 

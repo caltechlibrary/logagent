@@ -25,7 +25,7 @@ const (
 	// @example
 	//
 	//	fmt.Println(logagent.ReleaseHash) // "104e001"
-	ReleaseHash = "c75cfd9"
+	ReleaseHash = "ef857f3"
 )
 
 // LicenseText is the contents of the LICENSE file, embedded at build time so

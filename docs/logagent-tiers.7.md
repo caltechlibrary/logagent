@@ -1,6 +1,6 @@
-%logagent-tiers(7) user manual | version 0.0.4 104e001
+%logagent-tiers(7) user manual | version 0.1.0 c75cfd9
 % R. S. Doiel
-% 2026-10-07
+% 2026-10-26
 
 # NAME
 
@@ -36,8 +36,9 @@ path.
 : weeks and up. Requests to other parties, and policy. These are decisions for
   people and not software.
 
-None of the tiers is implemented in this build; see logagent(1) for the
-planned commands.
+This release implements part of tier 1: `check` and `report` read the
+configuration and the access log and make no change. The rest of tier 1 and
+tiers 2 and 3 are planned; see logagent(1) for the commands.
 
 # SEE ALSO
 

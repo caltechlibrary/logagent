@@ -11,21 +11,21 @@ const (
 	// @example
 	//
 	//	fmt.Println(logagent.Version) // "0.0.4"
-	Version = "0.0.4"
+	Version = "0.1.0"
 
 	// ReleaseDate is the date version.go was last updated (YYYY-MM-DD).
 	//
 	// @example
 	//
 	//	fmt.Println(logagent.ReleaseDate) // "2026-10-07"
-	ReleaseDate = "2026-10-07"
+	ReleaseDate = "2026-10-26"
 
 	// ReleaseHash is the git hash of HEAD when version.go was last updated.
 	//
 	// @example
 	//
 	//	fmt.Println(logagent.ReleaseHash) // "104e001"
-	ReleaseHash = "104e001"
+	ReleaseHash = "c75cfd9"
 )
 
 // LicenseText is the contents of the LICENSE file, embedded at build time so

@@ -15,8 +15,9 @@ lacks, and the `log_format` and `LogFormat` text {app_name} suggests, so the
 advice and the check cannot disagree.
 
 Each field has a name, a purpose, the tiers that need it, a default level, the
-hosts it applies to, the nginx variable, the Apache format directive and what to
-do when it is missing. The names are the labels used in the extended log format
+hosts it applies to, the nginx variable, the Apache format directive (kept for
+a later Apache release; Apache is not supported now) and what to do when it is
+missing. The names are the labels used in the extended log format
 already running on the CaltechAUTHORS production server.
 
 # LEVELS

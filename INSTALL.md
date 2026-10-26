@@ -1,10 +1,9 @@
 Installation for **logagent**
 =============================
 
-**logagent** is a work in progress: a Go tool for detecting and mitigating
-automated traffic on nginx and Apache 2 web servers. At this stage the
-`logagent` command provides only `--help`, `--version` and `--license`. See
-[README.md](README.md) for where it is going.
+**logagent** is a Go tool for detecting and mitigating automated traffic on
+nginx web servers. Version 0.1.0 provides `check` and `report`
+(both read-only); see [README.md](README.md) for what is planned.
 
 It provides one command line program, `logagent`.
 

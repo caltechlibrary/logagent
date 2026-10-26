@@ -2,14 +2,15 @@
 
 logagent helps Caltech Library detect and mitigate automated traffic against
 its public web services. It works from the Library's own servers, reading
-nginx and Apache 2 logs and configuration, so it does not depend on any one
+nginx logs and configuration, so it does not depend on any one
 vendor's edge or on challenge pages that burden readers. It is being rewritten
-in Go and is a work in progress.
+in Go; `check` and `report` are built and the rest is planned.
 
 ## Status
 
-**Work in progress.** The Go rewrite has a module skeleton and nothing more:
-`logagent --help`, `--version` and `--license`. The earlier Deno/TypeScript
+**Version 0.1.0.** The Go rewrite provides `logagent check` and `logagent
+report`, both read-only, and a terminal menu when run with no arguments at a
+terminal. `watch`, `respond` and `analyze` are planned and not built. The earlier Deno/TypeScript
 proof of concept (a tag-and-action log scanner in the spirit of fail2ban, and a
 log aggregator) is retired and remains in the repository's history.
 
@@ -31,7 +32,7 @@ outside it, and no tier overrides a lower one.
 4. **Organizational.** Requests to other parties, and policy, which are
    people's decisions and not software's.
 
-The planned command is a single `logagent` with subcommands:
+The program is a single `logagent` with subcommands (`watch`, `respond` and `analyze` are planned):
 
 `check`
 : read a web server's configuration and say whether the data detection needs is

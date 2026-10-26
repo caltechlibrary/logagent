@@ -32,8 +32,8 @@ the first of these:
    configuration says otherwise. The command is split on spaces and is not run
    by a shell, so `sudo nginx -T` works and a pipeline does not.
 
-Only nginx is supported. An Apache configuration is reported as unsupported, and
-the exit status is 1, until Apache has been surveyed and checked.
+Only nginx is supported. Apache is out of scope for now: an Apache configuration
+is reported as unsupported and the exit status is 1.
 
 # READING THE LOG
 

@@ -3,8 +3,7 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 type: software
 title: logagent
-abstract: "LogAgent was designed detecting bot based on log entries searching for specific sub strings. LogAnalyst was written to aggregate the structure in our logs to provide simple count 
-relations between log fields. The are intended to work with the NginX access logs we generate from our RDM instances. The tooling may work with other types of logs."
+abstract: "logagent helps Caltech Library detect and mitigate automated traffic against its public web services. It reads nginx access logs and configuration, judges behavior and not identity, and keeps detailed data only briefly to protect reader privacy."
 authors:
   - family-names: Doiel
     given-names: R. S.
@@ -13,12 +12,13 @@ authors:
 
 
 repository-code: "git+https://github.com/caltechlibrary/logagent"
-version: 0.0.4
-date-released: 2024-03-26
+version: 0.1.0
+date-released: 2026-10-26
 
 license-url: "https://data.caltech.edu/license"
 keywords:
   - logging
-  - agents
-  - analyzer
+  - nginx
+  - bots
+  - privacy
 

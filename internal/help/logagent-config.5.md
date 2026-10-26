@@ -43,8 +43,8 @@ host
 : a label for the host, shown in reports.
 
 server
-: required. `nginx` or `apache`. (Apache is accepted here, but `{app_name} check`
-  reports it as unsupported until Apache support exists.)
+: required. `nginx`. (`apache` is still read here, but Apache is out of scope for
+  now and `{app_name} check` reports it as unsupported.)
 
 config
 : where the web server's configuration comes from. `dump` is the path of a saved

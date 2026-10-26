@@ -1,6 +1,6 @@
-%logagent-respond(1) user manual | version 0.0.4 104e001
+%logagent-respond(1) user manual | version 0.1.0 c75cfd9
 % R. S. Doiel
-% 2026-10-07
+% 2026-10-26
 
 # NAME
 

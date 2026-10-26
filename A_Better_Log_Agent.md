@@ -4,42 +4,90 @@ title: A Better Log Agent
 
 # A Better Log Agent
 
-In the ongoing war of with abusive bots identifying patterns of access and behaviors is important. You want the public website to be publicly available but also must avoid the denail of service attackes based on either limitations of machine resources and value or service rental costs.  As a result you need to see the problem coming at you such that you can defend yourself and your legitimate users.
+A library wants its collections open to everyone, including harvesters. What it
+cannot afford is traffic that takes the service down for the readers. Defense
+therefore starts from cost and not from identity: a request that keeps the
+application busy for thirty seconds matters more than a hundred that cost
+nothing, whoever sent them. And because a library protects the privacy of its
+readers, the defense must work without building a record of who read what.
 
-## Log as a source of data
+This note is the rationale for `logagent` as rewritten in Go (version 0.1.0). It
+replaces an earlier note that proposed a log scanner which banned addresses and
+subnets with a firewall. That approach, and why it was set aside, is under
+*What changed*.
 
-Logs can be monitored as a source of data for analysis. Web server software such as Apache2 and NginX produce logs that can be consumed as they are written. Getting these into a database for processing and analysis involves mapping the log formats into actional metadata elements.
+## The log is sensor data
 
-From the point of composibility there needs to be a tool (function) that can trail the log and write it into a database records (e.g. rows in a table). The format of the log is described in the configuration of the web server. That can be used as the source structured that can be parsed and then used to tailing the metadata extraction for each new log entry. Beyond that is a mapping of the core log files to a schema suitable for your database (e.g. a JSON object or columns).
+The web server's access log is the best sensor the service has, but only if it
+records the right things: the time the request took, the time the application
+took, whether a cache answered, the real client address behind a proxy, and the
+client's declared agent. A log that omits them cannot be analyzed afterward.
 
-## Analysis
+So the first tool is `logagent check`. It reads the web server's configuration
+(the text `nginx -T` prints), finds each access log's format and says what is
+missing, with a suggested change and the file and line it belongs near. It also
+checks that retention under logrotate matches the privacy policy. It is
+read-only.
 
-With the arrival of the abusive behavior of the AI companies battling the bots can be challenging. Fortunately we have tools and techniques that should be useful. Data Science has for the quarter of the century provided approachees for aggregating and analysis of real word data and extrapolating useful results. This log entries are essentially sensor data of your web service. You can apply the techniques you learned in the field of Data Science to identifying the abusive patterns based on IP address and networks attacking your systems. Since the typical AI Bots work in swarms banning at the subnet level yields the best results in mitigating the abuse.
+## Report by cost
 
-## Next steps
+`logagent report` reads an access log once, with its rotated and gzipped files,
+and prints what the requests show, ranked by upstream seconds and not by request
+count. It groups clients into families (a declared crawler, a browser platform,
+a group that shares a fingerprint) and not by address. It keeps only counts: the
+report holds no address, path, query string, referer or user agent, so it can be
+pasted into an issue.
 
-1. Write a general parser that can read an Apache or NginX log file and identify the log formats needed for data harvesting
-2. Using the resulting structure parse the log and crosswalk the results into a common record format
-3. Using the common record format run analysis functions to identify potential problem requests
-4. Compare resulting IP range mappings against a list of legitimate requestor IP addresses (or ranging)
-5. Take the remaing problem IP address and generate the firewall commands that will be run to restrict access from those subnets
+## Tiers of defense, from fast to slow
 
-For improved results aggregate the log content across machines, the bots often attack more than one host at a time.
+Each tier works without the ones outside it, and none overrides a lower one.
 
-## Ideas, Someday, maybe
+0. **Capacity.** Fixed rules in the web server, such as concurrency limits and
+   caching. They react in milliseconds and need no daemon.
+1. **Detection.** Statistics over the log: bursts, baselines, cohorts.
+2. **Response.** Rules generate web server configuration. A person approves it;
+   it is a dry run by default and is applied only after the server's own
+   configuration test passes.
+3. **Analysis.** Review of long-term aggregates, with a person judging.
+4. **Organizational.** Requests to other parties, and policy.
 
-Write a service that runs the automate detect and ban process
+Built so far: `check` and `report`. Planned: `watch` (bursts and alerts),
+`respond` and `analyze`.
+
+## Privacy
+
+Three layers of data: the web server's own log, under the host's retention;
+reduced events with no query string, referer or full path, kept for weeks; and
+daily aggregates with no addresses, kept for months or years. Addresses that
+belong to the institution are never stored in detail and never targeted. See
+`logagent help privacy`.
+
+## What changed
+
+The first design (2025) read a log, matched sub strings and ran a firewall command for each match. That was simple and it was
+useful against single machines. It was set aside because:
+
+- identity is a poor signal. Swarms rotate addresses, and a declared agent
+  string is a claim and not a fact (a large share of the requests that claimed
+  to be a well-known search crawler could not be verified);
+- a ban by subnet can block readers, and a tool that edits the firewall on its
+  own is a hazard, so response became generated, reviewed configuration;
+- the data detection needs was often not in the log at all, so checking the
+  configuration came first.
 
 ## Questions
 
-Q: Why not use fail to ban?
+Q: Why not use fail2ban?
 
-It is good for old fashioned bot attacks by single machines, it isn't suitable to defend against the swarms of AI bots that hit all at once. You should be using it but it's not the only thing needed to manage the bot attacks.
+Use it. It is good against old-fashioned attacks by single machines.
+`logagent` does not replace it. It looks at cost across cohorts and at whether
+the log can answer the question at all.
 
-Q: What firewall is going to be used?
+Q: Does it depend on Cloudflare or on challenge pages?
 
-We use ufw as our machines run Ubuntu Server and that is the easiest to configure. The typical command looks something like, `sudo ufw insert 1 deny from IP_ADDRESS_OR_SUBNET` where IP_ADDRESS_OR_SUBNET uses the "/24" or "/16" IP address notation to specify a range.
+No. It works at the first place the Library controls, on the Library's own
+servers, and challenge pages burden readers.
 
-NOTE: the "insert 1" insures that the rule is evaluate early. Firewall rule order count, making the ban rule happen early ensures it is applied to the requesting bot.
+## Ideas, someday, maybe
 
-
+Aggregate across machines, since the same swarm often hits more than one host.

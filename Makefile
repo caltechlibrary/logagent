@@ -136,7 +136,7 @@ dist: build .FORCE
 		for FNAME in $(PROGRAMS); do \
 			env GOOS=$$GOOS GOARCH=$$GOARCH go build -o "dist/stage/bin/$${FNAME}$$SUFFIX" ./cmd/$$FNAME || exit 1; \
 		done; \
-		cp LICENSE codemeta.json CITATION.cff README.md INSTALL.md dist/stage/; \
+		cp LICENSE codemeta.json CITATION.cff README.md INSTALL.md CHANGE.md dist/stage/; \
 		cp -R docs examples man dist/stage/; \
 		(cd dist/stage && zip -qr ../$(PROJECT)-v$(VERSION)-$$NAME.zip .) || exit 1; \
 		echo "dist/$(PROJECT)-v$(VERSION)-$$NAME.zip"; \

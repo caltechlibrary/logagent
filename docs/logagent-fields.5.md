@@ -1,6 +1,6 @@
-%logagent-fields(5) user manual | version 0.0.4 104e001
+%logagent-fields(5) user manual | version 0.1.0 c75cfd9
 % R. S. Doiel
-% 2026-10-07
+% 2026-10-26
 
 # NAME
 
@@ -15,8 +15,9 @@ lacks, and the `log_format` and `LogFormat` text logagent suggests, so the
 advice and the check cannot disagree.
 
 Each field has a name, a purpose, the tiers that need it, a default level, the
-hosts it applies to, the nginx variable, the Apache format directive and what to
-do when it is missing. The names are the labels used in the extended log format
+hosts it applies to, the nginx variable, the Apache format directive (kept for
+a later Apache release; Apache is not supported now) and what to do when it is
+missing. The names are the labels used in the extended log format
 already running on the CaltechAUTHORS production server.
 
 # LEVELS

@@ -13,10 +13,11 @@ who asked for what. Libraries must also keep their resources available, and
 automated traffic can take a service down for everyone. {app_name} is built to
 do the second without giving up the first.
 
-This page describes the stance the design commits to. **Most of it is not
-implemented yet**: this build reads a configuration file and shows help, and
-does not yet read logs or write any data. Treat what follows as the rules the
-code must meet as it is written.
+This page describes the stance the design commits to. In this release `check`
+and `report` read a configuration file and the web server's logs, keep only
+counts, and write no data of their own. Layers 2 and 3 below are not written by
+any command yet: treat that part as the rules the code must meet when it is
+written.
 
 # PURPOSE
 

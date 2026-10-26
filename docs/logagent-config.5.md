@@ -1,6 +1,6 @@
-%logagent-config(5) user manual | version 0.0.4 104e001
+%logagent-config(5) user manual | version 0.1.0 c75cfd9
 % R. S. Doiel
-% 2026-10-07
+% 2026-10-26
 
 # NAME
 
@@ -43,8 +43,8 @@ host
 : a label for the host, shown in reports.
 
 server
-: required. `nginx` or `apache`. (Apache is accepted here, but `logagent check`
-  reports it as unsupported until Apache support exists.)
+: required. `nginx`. (`apache` is still read here, but Apache is out of scope for
+  now and `logagent check` reports it as unsupported.)
 
 config
 : where the web server's configuration comes from. `dump` is the path of a saved
@@ -69,6 +69,24 @@ internal_ranges
   counted, never stored in detail and never targeted by a response. There is no
   built-in default. List a cloud provider's own addresses, never the provider's
   whole published range, which anyone renting a server there shares.
+
+classes
+: how a request path is named in a report. `rules` is a list tried in order, the
+  first match wins; each has a `name` and **either** a `prefix` (the path begins
+  with it) **or** a `pattern` (a Go regular expression matched from the start of
+  the path; put `$` at the end to match the whole path). Several rules may share a
+  name. `default` is the class for a path no rule matches and is `other` if left
+  out. A rule never sees the query string. With no rules every request is one
+  class, `other`, and logagent-report(1) says so. The classes are a host's own
+  and are not built in; `examples/logagent.yaml` shows CaltechAUTHORS's.
+
+families
+: declared automated agents this host knows about, added to the list built into
+  logagent. Each has a `name`, a `match` list of text found, ignoring case, in
+  the User-Agent, and `declared`, which is `true` unless set to `false`. An entry
+  here is tried before the built-in ones, and one with the name of a built-in
+  entry replaces it. A name may appear only once. A user agent is a claim: every
+  declared family is reported as unverified.
 
 retention
 : the retention policy, in whole days. `logrotate` is the path of the logrotate
@@ -96,6 +114,14 @@ proxy:
   behind: cloudflare
 internal_ranges:
   - "131.215.0.0/16"
+classes:
+  default: other
+  rules:
+    - {name: api-iiif, prefix: /api/iiif/}
+    - {name: ui-record, pattern: '/records/[^/]+$'}
+families:
+  - name: example-agent
+    match: [example-agent]
 retention:
   layer2_days: 28
 fields:

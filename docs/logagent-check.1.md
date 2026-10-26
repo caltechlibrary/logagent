@@ -1,6 +1,6 @@
-%logagent-check(1) user manual | version 0.0.4 104e001
+%logagent-check(1) user manual | version 0.1.0 c75cfd9
 % R. S. Doiel
-% 2026-10-07
+% 2026-10-26
 
 # NAME
 
@@ -32,8 +32,8 @@ the first of these:
    configuration says otherwise. The command is split on spaces and is not run
    by a shell, so `sudo nginx -T` works and a pipeline does not.
 
-Only nginx is supported. An Apache configuration is reported as unsupported, and
-the exit status is 1, until Apache has been surveyed and checked.
+Only nginx is supported. Apache is out of scope for now: an Apache configuration
+is reported as unsupported and the exit status is 1.
 
 # READING THE LOG
 
@@ -142,6 +142,35 @@ access-log-off
 
 access-log-default
 : a server sets no `access_log`, so nginx uses its compiled-in default.
+
+cache-bypass-on-cookie
+: a location that uses `proxy_cache` names a cookie (`$http_cookie` or
+  `$cookie_NAME`) in `proxy_cache_bypass` or `proxy_no_cache`. A site that gives
+  every anonymous visitor a session cookie then caches almost nothing: on
+  CaltechAUTHORS the IIIF cache had 2 hits in 31 hours. The suggestion is to bypass
+  on an Authorization header or a token argument and, where the application marks
+  authenticated responses with a header (Invenio sends `X-User-ID`), to add
+  `$upstream_http_x_user_id` to `proxy_no_cache`. Confirm the header is sent on that
+  path first (a warning).
+
+cache-status-not-logged
+: a location that uses `proxy_cache` has no access log in force that records
+  `$upstream_cache_status`, so hits, misses and bypasses cannot be counted (a
+  warning).
+
+server-name-swallows-directive
+: a `server_name` line has no terminating semicolon, so nginx reads the next
+  directive's words as more server names and never applies it. `nginx -t` passes
+  with a warning about conflicting server names. Found when a `server_name` has a
+  block, or one of its arguments is the name of a server-block directive such as
+  `add_header` (a gap).
+
+access-log-not-configured
+: an `access_log` writes a file that the host configuration's `logs` does not
+  list, so its fields are not checked and it is not sampled (a note). A secondary
+  log with a narrow format, such as one written for a single experiment, is
+  expected to lack the fields the main log carries. List the file in `logs` to
+  hold it to the field rules. An undefined format name is still a gap.
 
 log-not-found
 : a log listed in the host configuration is written by no `access_log`.

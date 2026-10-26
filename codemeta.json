@@ -16,9 +16,9 @@
     }
   ],
   "dateCreated": "2025-01-23",
-  "dateModified": "2026-10-07",
+  "dateModified": "2026-10-26",
   "datePublished": "2024-03-26",
-  "description": "logagent helps Caltech Library detect and mitigate automated traffic against its public web services. It reads nginx and Apache 2 access logs and configuration, so it works from the Library's own servers and does not depend on one vendor's edge. It judges behavior and not identity, keeps detailed data only briefly, and keeps long-term data only as aggregates, to protect reader privacy.",
+  "description": "logagent helps Caltech Library detect and mitigate automated traffic against its public web services. It reads nginx access logs and configuration, so it works from the Library's own servers and does not depend on one vendor's edge. It judges behavior and not identity, keeps detailed data only briefly, and keeps long-term data only as aggregates, to protect reader privacy.",
   "funder": {
     "type": "Organization",
     "name": "Caltech Library"
@@ -27,7 +27,6 @@
     "logging",
     "web servers",
     "nginx",
-    "apache",
     "automated traffic",
     "bots",
     "privacy"
@@ -46,9 +45,9 @@
     "Go (current stable)",
     "Pandoc (man pages)"
   ],
-  "version": "0.0.4",
+  "version": "0.1.0",
   "developmentStatus": "wip",
   "issueTracker": "https://github.com/caltechlibrary/logagent/issues",
   "downloadUrl": "https://github.com/caltechlibrary/logagent/releases",
-  "releaseNotes": "Working proof of concept fo LogAgent and LogAnalyst."
+  "releaseNotes": "logagent v0.1.0 is a clean-slate rewrite in Go. The Deno/TypeScript tool of v0.0.4 and its ufw ban helpers are retired; the approach is now cost and behavior, not identity, and checking and reporting before acting.\n\nAdded:\n- `logagent check` reads `nginx -T` and says whether the access log records what detection needs: log format fields, include order, `access_log off`, the real client address behind a proxy, cache logging, `error_log`, and retention against logrotate. Text or `--json`, with a suggested change and the file and line for each gap.\n- `logagent report` reads an access log and its rotated and gzipped files once and prints ten sections ranked by upstream seconds, grouped by family of client. It keeps only counts, so a report can be pasted into an issue.\n- A terminal menu, per-host YAML configuration, manual pages (`logagent help`), and the privacy stance written down and tested.\n\nChanged:\n- nginx only. Apache 2 is out of scope for now and `check` reports it as unsupported.\n- No firewall bans.\n\nNot built: `watch`, `respond`, `analyze`, reading `escape=json` logs, verifying declared crawlers.\n\nSee CHANGE.md."
 }

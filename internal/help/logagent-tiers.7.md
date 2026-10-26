@@ -36,8 +36,9 @@ path.
 : weeks and up. Requests to other parties, and policy. These are decisions for
   people and not software.
 
-None of the tiers is implemented in this build; see {app_name}(1) for the
-planned commands.
+This release implements part of tier 1: `check` and `report` read the
+configuration and the access log and make no change. The rest of tier 1 and
+tiers 2 and 3 are planned; see {app_name}(1) for the commands.
 
 # SEE ALSO
 

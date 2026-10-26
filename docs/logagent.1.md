@@ -1,6 +1,6 @@
-%logagent(1) user manual | version 0.0.4 104e001
+%logagent(1) user manual | version 0.1.0 c75cfd9
 % R. S. Doiel
-% 2026-10-07
+% 2026-10-26
 
 # NAME
 
@@ -16,10 +16,11 @@ logagent COMMAND [OPTIONS]
 
 # DESCRIPTION
 
-logagent is being rewritten as the Library's tool for detecting and
-mitigating automated traffic on nginx and Apache 2 web servers. This build
-provides the standard options and the help system. The commands are planned
-and none of them is implemented yet.
+logagent is the Library's tool for detecting and mitigating automated traffic
+on nginx web servers. This release provides `check`, which reads a
+web server's configuration and says whether the data detection needs is being
+logged, and `report`, which reads an access log and summarizes what the traffic
+costs the application. Both are read-only. The other commands are planned.
 
 # OPTIONS
 
@@ -38,10 +39,10 @@ help [TOPIC]
 : show a help page. With no TOPIC show this one. `help --list` lists every page.
 
 check
-: (planned) validate that a web server's configuration logs the data detection needs
+: validate that a web server's configuration logs the data detection needs
 
 report
-: (planned) summarize automated traffic and its cost
+: summarize automated traffic and the load it puts on the application
 
 watch
 : (planned) follow a log and raise alerts on bursts
@@ -64,7 +65,7 @@ logagent-fields(5)
 : the log fields the tiers need and how each server logs them
 
 logagent-jsonl(5)
-: the JSON Lines files logagent reads and writes (planned)
+: the event record, as JSON Lines (defined; no command writes it yet)
 
 logagent-privacy(7)
 : what is collected, kept and never kept
@@ -75,8 +76,8 @@ logagent-tiers(7)
 # INTERACTIVE USE
 
 Run with no arguments at a terminal, logagent opens a menu of its commands.
-`check` runs the check and shows the report; the others show a note that they
-are not built yet and where to read about them. Arrow keys or `j` and `k` move,
+`check` runs the check and shows the report; the commands not built yet show a
+note saying so and where to read about them. Arrow keys or `j` and `k` move,
 Enter chooses, `q` or Esc goes back or quits. Colour is only a highlight on the
 cursor row, which is also marked with `>`, and is off when `NO_COLOR` is set.
 With no terminal, no arguments is a usage error.
